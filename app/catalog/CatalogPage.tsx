@@ -3,300 +3,284 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import { Footer } from '@/components/Sections';
+import { PRODUCTS, crossRefSearch, getProductById, type CrossRefEntry, type Product } from '@/lib/products';
 
 type Lang = 'th' | 'en';
 const t = (lang: Lang, th: string, en: string) => lang === 'en' ? en : th;
 
-const CATEGORIES = [
-  {
-    brand: 'SUG',
-    key: 'roofing',
-    th: 'ระบบหลังคา',
-    en: 'Roofing System',
-    desc_th: 'สกรูปลายสว่าน Bi-Metal 304 · กระเบื้องหลังคา · เมทัลชีต · EPDM',
-    desc_en: 'Bi-Metal 304 self-drilling screws · tile · metal sheet · EPDM',
-    std: 'AS3566 · SALT-SPRAY 1000H',
-    count: '2,400+',
-    color: '#2B2C91',
-  },
-  {
-    brand: 'SUG',
-    key: 'multipurpose',
-    th: 'งานอเนกประสงค์',
-    en: 'Multipurpose',
-    desc_th: 'แปะแนงเหล็ก · WAVE DOME · สกรูไม้ทั่วไป',
-    desc_en: 'Steel purlins · WAVE DOME · general wood screws',
-    std: 'T-17 · SD POINT',
-    count: '1,800+',
-    color: '#2B2C91',
-  },
-  {
-    brand: 'SUG',
-    key: 'wall',
-    th: 'ผนัง / ไฟเบอร์ซีเมนต์',
-    en: 'Wall / Fibre-cement',
-    desc_th: 'CSH · RIB · FMC · ไม้ฝา · ซีเมนต์บอร์ด',
-    desc_en: 'CSH · RIB · FMC · lap board · cement board',
-    std: 'DIN 7504',
-    count: '900+',
-    color: '#2B2C91',
-  },
-  {
-    brand: 'SUG',
-    key: 'concrete',
-    th: 'งานคอนกรีต',
-    en: 'Concrete',
-    desc_th: 'หัวเหลี่ยม · FH · PH · HEX FLANGE',
-    desc_en: 'Hex head · FH · PH · hex flange',
-    std: 'ETA · DIN',
-    count: '650+',
-    color: '#2B2C91',
-  },
-  {
-    brand: 'SUG',
-    key: 'accessories',
-    th: 'อุปกรณ์เสริม',
-    en: 'Accessories',
-    desc_th: 'EPDM · รางน้ำ · แป · เครื่องมือ · อุปกรณ์ยึด',
-    desc_en: 'EPDM · gutters · purlins · tools · fixing accessories',
-    std: 'MADE-TO-SPEC',
-    count: '1,200+',
-    color: '#2B2C91',
-  },
-  {
-    brand: 'TITAN',
-    key: 'general',
-    th: 'น็อตมาตรฐานทั่วไป',
-    en: 'General Standard Nuts',
-    desc_th: 'สลักเกลียว น็อต แหวน ทุกขนาดมาตรฐาน DIN',
-    desc_en: 'Bolts, nuts, washers — all standard DIN sizes',
-    std: 'DIN · ISO · JIS',
-    count: '8,000+',
-    color: '#202B77',
-  },
-  {
-    brand: 'TITAN',
-    key: 'electrical',
-    th: 'อุตสาหกรรมงานไฟฟ้า',
-    en: 'Electrical Industry',
-    desc_th: 'ตู้ไฟ · ราง · กราวด์ · cable tray · conduit',
-    desc_en: 'Electrical enclosures · cable trays · grounding',
-    std: 'IEC · DIN',
-    count: '2,600+',
-    color: '#202B77',
-  },
-  {
-    brand: 'TITAN',
-    key: 'stainless',
-    th: 'อุตสาหกรรมงานสเตนเลส',
-    en: 'Stainless Industry',
-    desc_th: 'SUS304 · SUS316 ทนกรด-ด่าง ทุกประเภท',
-    desc_en: 'SUS304 · SUS316 — acid & alkali resistant',
-    std: 'ASTM A193 · DIN',
-    count: '3,200+',
-    color: '#202B77',
-  },
-  {
-    brand: 'TITAN',
-    key: 'agri',
-    th: 'อุตสาหกรรมงานเกษตร',
-    en: 'Agriculture Industry',
-    desc_th: 'เครื่องจักรกลเกษตร · heavy-duty grade',
-    desc_en: 'Agricultural machinery · heavy-duty grade',
-    std: 'ISO 8.8 · 10.9',
-    count: '1,400+',
-    color: '#202B77',
-  },
-  {
-    brand: 'TITAN',
-    key: 'plumbing',
-    th: 'อุตสาหกรรมงานประปา',
-    en: 'Plumbing Industry',
-    desc_th: 'ข้อต่อ · วาล์ว · ท่อ · fitting ทุกขนาด',
-    desc_en: 'Fittings · valves · pipes — all sizes',
-    std: 'WATERWORKS',
-    count: '900+',
-    color: '#202B77',
-  },
-];
+const SORT_OPTIONS = [
+  { value: 'recommended', th: 'เรียง: แนะนำ', en: 'Sort: Recommended' },
+  { value: 'name', th: 'เรียง: ชื่อ', en: 'Sort: Name' },
+  { value: 'brand', th: 'เรียง: แบรนด์', en: 'Sort: Brand' },
+] as const;
 
 export default function CatalogPage() {
   const [lang, setLang] = useState<Lang>('th');
   const [filter, setFilter] = useState<'ALL' | 'SUG' | 'TITAN'>('ALL');
+  const [sort, setSort] = useState('recommended');
+  const [crossRefQuery, setCrossRefQuery] = useState('');
+  const [crossRefResults, setCrossRefResults] = useState<CrossRefEntry[]>([]);
+  const [crossRefSearched, setCrossRefSearched] = useState(false);
 
-  const filtered = filter === 'ALL' ? CATEGORIES : CATEGORIES.filter(c => c.brand === filter);
+  const handleCrossRef = () => {
+    if (crossRefQuery.trim().length >= 2) {
+      setCrossRefResults(crossRefSearch(crossRefQuery));
+      setCrossRefSearched(true);
+    }
+  };
+
+  let filtered = filter === 'ALL' ? PRODUCTS : PRODUCTS.filter(p => p.brand === filter);
+  if (sort === 'name') filtered = [...filtered].sort((a, b) => a.name_th.localeCompare(b.name_th));
+  if (sort === 'brand') filtered = [...filtered].sort((a, b) => a.brand.localeCompare(b.brand));
 
   return (
     <>
       <Header lang={lang} setLang={setLang} active="products" />
       <main>
-        {/* Page hero */}
-        <section style={{
-          background: 'linear-gradient(155deg, #23247E 0%, #14154F 100%)',
-          color: '#fff',
-          padding: '80px 0 60px',
+        {/* Cross-reference bar — matches design image 9 */}
+        <div style={{
+          background: '#fff',
+          borderBottom: '1px solid var(--sug-fog)',
+          padding: '20px 0',
         }}>
-          <div className="section-inner">
-            <span className="section-kicker light">{t(lang, 'สินค้าทั้งหมด', 'ALL PRODUCTS')}</span>
-            {lang === 'th' ? (
-              <h1 className="section-title-th light" style={{ marginTop: 12 }}>แค็ตตาล็อกสินค้า</h1>
-            ) : (
-              <h1 className="section-title light" style={{ marginTop: 12 }}>Product Catalog</h1>
-            )}
-            <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: 17, marginTop: 16, maxWidth: 560 }} lang={lang}>
-              {t(lang,
-                '50,000+ รายการ ครอบคลุม SUG · TITAN · GIANTLOK · LIO · LOREX — สต็อกพร้อมส่งทั่วประเทศ',
-                '50,000+ products across SUG · TITAN · GIANTLOK · LIO · LOREX — in stock, nationwide delivery.')}
-            </p>
-          </div>
-        </section>
-
-        {/* Filter bar */}
-        <div style={{ background: '#fff', borderBottom: '1px solid var(--sug-fog)', position: 'sticky', top: 73, zIndex: 50 }}>
           <div className="section-inner" style={{ paddingTop: 0, paddingBottom: 0 }}>
-            <div style={{ display: 'flex', gap: 4, padding: '16px 0', alignItems: 'center' }}>
-              {(['ALL', 'SUG', 'TITAN'] as const).map(f => (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  style={{
-                    padding: '8px 20px',
-                    borderRadius: 'var(--radius-2)',
-                    border: '1px solid',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    fontFamily: 'var(--font-mono)',
-                    letterSpacing: '0.08em',
-                    cursor: 'pointer',
-                    transition: 'all 180ms',
-                    background: filter === f ? 'var(--sug-ink)' : 'transparent',
-                    color: filter === f ? '#fff' : 'var(--fg-2)',
-                    borderColor: filter === f ? 'var(--sug-ink)' : 'var(--border-hairline)',
-                  }}
-                >
-                  {f === 'ALL' ? t(lang, 'ทั้งหมด', 'ALL') : f}
-                </button>
-              ))}
-              <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-3)', letterSpacing: '0.06em' }}>
-                {filtered.length} {t(lang, 'กลุ่มสินค้า', 'categories')}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{
+                fontFamily: lang === 'th' ? 'var(--font-thai)' : 'var(--font-body)',
+                fontSize: 14,
+                fontWeight: 700,
+                color: 'var(--fg-1)',
+                whiteSpace: 'nowrap',
+              }} lang={lang}>
+                {t(lang, 'เทียบรหัสคู่แข่ง', 'Cross-reference')}
               </span>
+              <input
+                type="text"
+                value={crossRefQuery}
+                onChange={e => setCrossRefQuery(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleCrossRef()}
+                placeholder={t(lang,
+                  'วางรหัสสินค้าของแบรนด์อื่น เช่น HILTI, BOSCH...',
+                  'Paste competitor part number, e.g. HILTI, BOSCH...')}
+                style={{
+                  flex: 1,
+                  padding: '12px 16px',
+                  border: '1px solid var(--sug-fog)',
+                  borderRadius: 'var(--radius-1)',
+                  fontSize: 14,
+                  fontFamily: 'var(--font-mono)',
+                  letterSpacing: '0.02em',
+                  color: 'var(--fg-1)',
+                  outline: 'none',
+                }}
+              />
+              <button
+                onClick={handleCrossRef}
+                style={{
+                  background: 'var(--sug-ink)',
+                  color: '#fff',
+                  border: 'none',
+                  padding: '12px 24px',
+                  borderRadius: 'var(--radius-1)',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  fontFamily: lang === 'th' ? 'var(--font-thai)' : 'var(--font-body)',
+                  transition: 'background 180ms',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--sug-orange)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'var(--sug-ink)')}
+              >
+                {t(lang, 'ค้นหา SUG ที่เทียบเท่า', 'Find SUG equivalent')}
+              </button>
+            </div>
+
+            {/* Cross-ref results */}
+            {crossRefSearched && (
+              <div style={{ marginTop: 16, borderTop: '1px solid var(--sug-fog)', paddingTop: 16 }}>
+                {crossRefResults.length === 0 ? (
+                  <p style={{ fontFamily: lang === 'th' ? 'var(--font-thai)' : 'var(--font-body)', fontSize: 14, color: 'var(--fg-3)', margin: 0 }} lang={lang}>
+                    {t(lang, 'ไม่พบรหัสที่ค้นหา — ติดต่อฝ่ายขายเพื่อสอบถามเพิ่มเติม', 'No match found — contact sales for manual lookup.')}
+                  </p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {crossRefResults.map((r, i) => {
+                      const product = getProductById(r.sug_product_id);
+                      return (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '12px 16px', background: 'var(--sug-paper)', borderRadius: 'var(--radius-1)' }}>
+                          <div style={{ flex: 1 }}>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-3)' }}>
+                              {r.competitor_brand} {r.competitor_sku}
+                            </span>
+                            <span style={{ margin: '0 12px', color: 'var(--sug-mist)' }}>→</span>
+                            <span style={{ fontFamily: lang === 'th' ? 'var(--font-thai)' : 'var(--font-body)', fontSize: 14, fontWeight: 700, color: 'var(--fg-1)' }}>
+                              {product ? t(lang, product.name_th, product.name_en) : r.sug_product_id}
+                            </span>
+                          </div>
+                          {product && (
+                            <Link href={`/products/${product.system}/${product.id}`}
+                              style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--sug-orange)', textDecoration: 'none', fontWeight: 600 }}>
+                              {t(lang, 'ดูสินค้า →', 'View →')}
+                            </Link>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Count + sort bar */}
+        <div style={{ background: '#fff', borderBottom: '1px solid var(--sug-fog)', padding: '12px 0' }}>
+          <div className="section-inner" style={{ paddingTop: 0, paddingBottom: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                <span style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 700, color: 'var(--sug-orange)' }}>
+                  {filtered.length}
+                </span>
+                <span style={{ fontFamily: lang === 'th' ? 'var(--font-thai)' : 'var(--font-body)', fontSize: 15, color: 'var(--fg-2)' }} lang={lang}>
+                  {t(lang, 'รายการสินค้า', 'products')}
+                </span>
+              </div>
+              <select
+                value={sort}
+                onChange={e => setSort(e.target.value)}
+                style={{
+                  padding: '8px 32px 8px 12px',
+                  border: '1px solid var(--sug-fog)',
+                  borderRadius: 'var(--radius-1)',
+                  fontSize: 13,
+                  fontFamily: lang === 'th' ? 'var(--font-thai)' : 'var(--font-body)',
+                  color: 'var(--fg-2)',
+                  appearance: 'auto',
+                  background: '#fff',
+                  cursor: 'pointer',
+                  outline: 'none',
+                }}
+              >
+                {SORT_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>{t(lang, o.th, o.en)}</option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
 
-        {/* Product grid */}
-        <div className="section" style={{ paddingTop: 60 }}>
-          <div className="section-inner">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 2, background: 'var(--sug-fog)', border: '1px solid var(--sug-fog)' }}>
-              {filtered.map((cat, i) => (
+        {/* Product list — matches design image 9 (list rows, not cards) */}
+        <div style={{ background: '#fff', paddingBottom: 80 }}>
+          <div className="section-inner" style={{ paddingTop: 0 }}>
+            {filtered.map((p, i) => {
+              const inStock = p.variants.filter(v => v.in_stock).length;
+              const totalVariants = p.variants.length;
+              const minPrice = Math.min(...p.variants.map(v => v.price_from ?? 0));
+              const specTags = p.standards || [];
+
+              return (
                 <Link
-                  key={cat.key}
-                  href={`/catalog?brand=${cat.brand}&sys=${cat.key}`}
+                  key={p.id}
+                  href={`/products/${p.system}/${p.id}`}
                   style={{
-                    background: '#fff',
-                    padding: '32px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 12,
-                    minHeight: 240,
-                    position: 'relative',
-                    transition: 'background 180ms',
+                    display: 'grid',
+                    gridTemplateColumns: '80px 1fr auto',
+                    gap: 20,
+                    alignItems: 'center',
+                    padding: '24px 0',
+                    borderBottom: '1px solid var(--sug-fog)',
                     textDecoration: 'none',
+                    transition: 'background 120ms',
                   }}
                   onMouseEnter={e => (e.currentTarget.style.background = 'var(--sug-paper)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
-                  {/* Brand badge */}
-                  <div style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    marginBottom: 4,
-                  }}>
+                  {/* Brand badge + image placeholder */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                     <span style={{
-                      background: cat.color,
+                      background: p.brand === 'SUG' ? 'var(--sug-blue)' : 'var(--titan-blue)',
                       color: '#fff',
                       fontSize: 10,
                       fontFamily: 'var(--font-mono)',
-                      fontWeight: 600,
+                      fontWeight: 700,
                       letterSpacing: '0.1em',
-                      padding: '3px 8px',
+                      padding: '3px 10px',
                       borderRadius: 2,
-                    }}>{cat.brand}</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg-3)', letterSpacing: '0.08em' }}>
-                      {cat.count} {t(lang, 'รายการ', 'items')}
-                    </span>
+                    }}>{p.brand}</span>
+                    <div style={{
+                      width: 60, height: 60,
+                      background: 'var(--sug-paper)',
+                      borderRadius: 'var(--radius-1)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontFamily: 'var(--font-thai)', fontSize: 10, color: 'var(--fg-3)',
+                    }}>
+                      {t(lang, 'ภาพ', 'IMG')}
+                      <br />{t(lang, 'สินค้า', '')}
+                    </div>
                   </div>
 
-                  <h3 style={{
-                    fontFamily: lang === 'th' ? 'var(--font-thai)' : 'var(--font-display)',
-                    fontSize: lang === 'th' ? 22 : 26,
-                    fontWeight: 700,
-                    margin: 0,
-                    lineHeight: 1.15,
-                    color: 'var(--fg-1)',
-                    letterSpacing: lang === 'th' ? 0 : '-0.01em',
-                    textTransform: lang === 'th' ? 'none' : 'uppercase',
-                  }} lang={lang}>
-                    {t(lang, cat.th, cat.en)}
-                  </h3>
-
-                  <p style={{ fontSize: 14, color: 'var(--fg-2)', lineHeight: 1.6, margin: 0 }} lang={lang}>
-                    {t(lang, cat.desc_th, cat.desc_en)}
-                  </p>
-
-                  <div style={{
-                    marginTop: 'auto',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 10,
-                    letterSpacing: '0.1em',
-                    textTransform: 'uppercase',
-                    color: 'var(--fg-3)',
-                  }}>
-                    {cat.std}
+                  {/* Product info */}
+                  <div>
+                    <h3 style={{
+                      fontFamily: lang === 'th' ? 'var(--font-thai)' : 'var(--font-body)',
+                      fontSize: 17,
+                      fontWeight: 700,
+                      margin: '0 0 6px',
+                      color: 'var(--fg-1)',
+                      lineHeight: 1.3,
+                    }} lang={lang}>
+                      {t(lang, p.name_th, p.name_en)}
+                    </h3>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+                      {specTags.map(tag => (
+                        <span key={tag} style={{
+                          display: 'inline-block',
+                          padding: '2px 8px',
+                          border: '1px solid var(--sug-fog)',
+                          borderRadius: 2,
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: 10,
+                          fontWeight: 600,
+                          color: 'var(--fg-2)',
+                          letterSpacing: '0.04em',
+                        }}>{tag.trim()}</span>
+                      ))}
+                    </div>
+                    <p style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 11,
+                      color: 'var(--fg-3)',
+                      margin: 0,
+                      letterSpacing: '0.04em',
+                    }}>
+                      {t(lang, 'ปรับสเปกได้', 'Configurable')} · {totalVariants} {t(lang, 'ขนาด', 'sizes')} · {p.variants[0]?.pack_qty || '-'} {t(lang, 'ความยาว', 'lengths')}
+                    </p>
                   </div>
 
-                  {/* Arrow */}
-                  <span style={{
-                    position: 'absolute',
-                    top: 28,
-                    right: 28,
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 18,
-                    color: 'var(--sug-mist)',
-                    transition: 'transform 180ms, color 180ms',
-                  }}>→</span>
+                  {/* Price + stock */}
+                  <div style={{ textAlign: 'right', minWidth: 140 }}>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-3)', marginBottom: 4 }}>
+                      {t(lang, 'เริ่มต้น', 'from')}
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, color: 'var(--fg-1)', lineHeight: 1 }}>
+                      ฿{minPrice.toFixed(2)}<span style={{ fontSize: 13, fontWeight: 400, color: 'var(--fg-3)' }}>/{t(lang, 'ชิ้น', 'pc')}</span>
+                    </div>
+                    <div style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6,
+                      marginTop: 8,
+                      fontFamily: lang === 'th' ? 'var(--font-thai)' : 'var(--font-body)',
+                      fontSize: 13,
+                      color: inStock > 0 ? 'var(--sug-success)' : 'var(--fg-3)',
+                    }}>
+                      {inStock > 0 && <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--sug-success)', flexShrink: 0 }} />}
+                      {t(lang, 'พร้อมส่งวันนี้', 'Ready to ship')}
+                      <span style={{ fontSize: 16, color: 'var(--sug-mist)', marginLeft: 4 }}>→</span>
+                    </div>
+                  </div>
                 </Link>
-              ))}
-            </div>
-
-            {/* CTA */}
-            <div style={{
-              marginTop: 80,
-              background: 'linear-gradient(155deg, #23247E 0%, #14154F 100%)',
-              borderRadius: 'var(--radius-2)',
-              padding: '56px 60px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              gap: 40,
-              flexWrap: 'wrap',
-            }}>
-              <div>
-                <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--sug-orange)', marginBottom: 12 }}>
-                  {t(lang, 'ต้องการสินค้าเฉพาะทาง?', 'NEED A CUSTOM SPEC?')}
-                </p>
-                <h3 style={{ fontFamily: lang === 'th' ? 'var(--font-thai)' : 'var(--font-display)', fontSize: lang === 'th' ? 28 : 36, fontWeight: 700, color: '#fff', margin: 0, lineHeight: 1.1, textTransform: lang === 'th' ? 'none' : 'uppercase' }} lang={lang}>
-                  {t(lang, 'ขอใบเสนอราคาได้เลย ใน 24 ชั่วโมง', 'Get a quote within 24 hours.')}
-                </h3>
-              </div>
-              <Link href="/#contact" className="btn-orange-lg" lang={lang} style={{ flexShrink: 0 }}>
-                {t(lang, 'ติดต่อฝ่ายขาย', 'Contact Sales')} <span className="arr">→</span>
-              </Link>
-            </div>
+              );
+            })}
           </div>
         </div>
       </main>

@@ -47,10 +47,9 @@ export default function Header({ lang, setLang, active = 'home' }: HeaderProps) 
 
   const navLinks = [
     { key: 'products', th: 'สินค้า', en: 'Products', href: '/catalog', hasMega: true },
-    { key: 'about', th: 'เกี่ยวกับเรา', en: 'About', href: '/about' },
-    { key: 'compare', th: 'เทียบรหัสคู่แข่ง', en: 'Cross-Reference', href: '/compare' },
-    { key: 'resources', th: 'เอกสารเทคนิค', en: 'Resources', href: '/resources' },
-    { key: 'dealers', th: 'ตัวแทนจำหน่าย', en: 'Dealers', href: '/dealers' },
+    { key: 'brands', th: 'แบรนด์', en: 'Brands', href: '/#brands' },
+    { key: 'catalog', th: 'แค็ตตาล็อก', en: 'Catalog', href: '/catalog' },
+    { key: 'dealer', th: 'สำหรับตัวแทน', en: 'For Dealers', href: '/portal' },
     { key: 'contact', th: 'ติดต่อเรา', en: 'Contact', href: '/contact' },
   ];
 
@@ -188,22 +187,6 @@ export default function Header({ lang, setLang, active = 'home' }: HeaderProps) 
 
           {/* CTA */}
           <div className="nav-actions">
-            <Link href="/search"
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: 8, border: '1px solid var(--sug-fog)', color: 'var(--fg-2)', textDecoration: 'none', fontSize: 16, transition: 'all 180ms' }}
-              title={t('ค้นหาสินค้า', 'Search products')}
-              onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => { e.currentTarget.style.background = 'var(--sug-orange)'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'var(--sug-orange)'; }}
-              onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--fg-2)'; e.currentTarget.style.borderColor = 'var(--sug-fog)'; }}
-            >
-              🔍
-            </Link>
-            <Link href="/portal"
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: 8, border: '1px solid var(--sug-fog)', color: 'var(--fg-2)', textDecoration: 'none', fontSize: 16, transition: 'all 180ms' }}
-              title={t('Dealer Portal', 'Dealer Portal')}
-              onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => { e.currentTarget.style.background = 'var(--sug-blue)'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'var(--sug-blue)'; }}
-              onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--fg-2)'; e.currentTarget.style.borderColor = 'var(--sug-fog)'; }}
-            >
-              🔒
-            </Link>
             <Link href="/contact" className="btn-contact" lang={lang}>
               {t('ติดต่อฝ่ายขาย', 'Contact Sales')} <span className="arr">→</span>
             </Link>

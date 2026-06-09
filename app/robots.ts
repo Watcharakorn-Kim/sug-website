@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/portal/dashboard', '/api/'],
+        disallow: ['/portal/', '/api/'],
       },
     ],
     sitemap: 'https://www.sugbolts-nuts.com/sitemap.xml',

@@ -164,7 +164,7 @@ export function ProductCategories({ lang }: { lang: Lang }) {
       <div className="section-inner">
         <header className="section-head">
           <div>
-            <span className="section-kicker">03 · {t(lang, 'ระบบงานของ SUG', 'SUG BY SYSTEM')}</span>
+            <span className="section-kicker">01 · {t(lang, 'ระบบงานของ SUG', 'SUG BY SYSTEM')}</span>
             {lang === 'th' ? (
               <h2 className="section-title-th">บ้าน 1 หลัง — SUG ดูแลครบ 5 ระบบ</h2>
             ) : (
@@ -220,7 +220,7 @@ export function TitanCategories({ lang }: { lang: Lang }) {
       <div className="section-inner">
         <header className="section-head">
           <div>
-            <span className="section-kicker">04 · {t(lang, 'สินค้า TITAN', 'TITAN PRODUCTS')}</span>
+            <span className="section-kicker">03 · {t(lang, 'สินค้า TITAN', 'TITAN PRODUCTS')}</span>
             {lang === 'th' ? (
               <h2 className="section-title-th">น็อตและสลักภัณฑ์<br />มาตรฐานงานอุตสาหกรรม</h2>
             ) : (
@@ -275,7 +275,7 @@ export function BrandFamily({ lang }: { lang: Lang }) {
       <div className="section-inner">
         <header className="section-head">
           <div>
-            <span className="section-kicker">05 · {t(lang, 'ตระกูลแบรนด์', 'THE BRAND FAMILY')}</span>
+            <span className="section-kicker">04 · {t(lang, 'ตระกูลแบรนด์', 'THE BRAND FAMILY')}</span>
             {lang === 'th' ? (
               <h2 className="section-title-th">สองแบรนด์<br />คนละตรรกะการเลือก</h2>
             ) : (

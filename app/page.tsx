@@ -24,10 +24,10 @@ export default function HomePage() {
       <main>
         <Hero lang={lang} />
         <AboutCompany lang={lang} />
-        <WhySug lang={lang} />
         <ProductCategories lang={lang} />
         <TitanCategories lang={lang} />
         <BrandFamily lang={lang} />
+        <WhySug lang={lang} />
         <CatalogDownload lang={lang} />
         <CtaContact lang={lang} />
       </main>

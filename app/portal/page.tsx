@@ -20,7 +20,7 @@ function LoginForm() {
     const ok = await login(username.trim(), password);
     setLoading(false);
     if (ok) {
-      router.push('/portal/dashboard');
+      router.push('/');
     } else {
       setError('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง · Invalid username or password');
     }
