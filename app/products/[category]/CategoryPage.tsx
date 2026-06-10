@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import { Footer } from '@/components/Sections';
-import { CATEGORIES, PRODUCTS, getCategoryByKey, type Product } from '@/lib/products';
+import { CATEGORIES, PRODUCTS, getCategoryByKey, stockFor, type Product } from '@/lib/products';
 
 type Lang = 'th' | 'en';
 const t = (lang: Lang, th: string, en: string) => lang === 'en' ? en : th;
@@ -15,11 +15,16 @@ interface Props {
 // Compact product card for listing
 function ProductCard({ product, lang }: { product: Product; lang: Lang }) {
   const [hovering, setHovering] = useState(false);
-  const inStockCount = product.variants.filter(v => v.in_stock).length;
+  const stock = stockFor(product.seed);
+  const inStockCount = stock.reduce((sum, b) => sum + b.qty, 0);
+
+  const variantsCount = product.parametric
+    ? (product.attrs?.size?.length || 1)
+    : (product.hasSizes?.length || 1);
 
   return (
     <Link
-      href={`/products/${product.system}/${product.id}`}
+      href={`/products/${product.cat}/${product.id}`}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -44,24 +49,19 @@ function ProductCard({ product, lang }: { product: Product; lang: Lang }) {
           color: '#fff', fontSize: 10, fontFamily: 'var(--font-mono)',
           fontWeight: 600, letterSpacing: '0.1em', padding: '3px 8px', borderRadius: 2,
         }}>{product.brand}</span>
-        {product.isBestSeller && (
+        {product.premium && (
           <span style={{ background: 'var(--sug-orange)', color: '#fff', fontSize: 10, fontFamily: 'var(--font-mono)', fontWeight: 600, letterSpacing: '0.08em', padding: '3px 8px', borderRadius: 2 }}>
             {t(lang, 'ขายดี', 'BEST SELLER')}
-          </span>
-        )}
-        {product.isNew && (
-          <span style={{ background: 'var(--sug-success)', color: '#fff', fontSize: 10, fontFamily: 'var(--font-mono)', fontWeight: 600, letterSpacing: '0.08em', padding: '3px 8px', borderRadius: 2 }}>
-            NEW
           </span>
         )}
       </div>
 
       {/* Product image if available */}
-      {product.image && (
+      {product.img && (
         <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
           <img
-            src={product.image}
-            alt={t(lang, product.name_th, product.name_en)}
+            src={product.img}
+            alt={t(lang, product.th, product.en)}
             style={{ maxHeight: '100%', maxWidth: '70%', objectFit: 'contain', transition: 'transform 280ms', transform: hovering ? 'scale(1.06)' : 'scale(1)' }}
           />
         </div>
@@ -69,7 +69,7 @@ function ProductCard({ product, lang }: { product: Product; lang: Lang }) {
 
       {/* SKU prefix */}
       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', color: 'var(--fg-3)' }}>
-        SKU: {product.sku_prefix}
+        SKU: {product.sku || product.id.toUpperCase()}
       </span>
 
       {/* Name */}
@@ -81,7 +81,7 @@ function ProductCard({ product, lang }: { product: Product; lang: Lang }) {
         color: 'var(--fg-1)',
         lineHeight: 1.35,
       }} lang={lang}>
-        {t(lang, product.name_th, product.name_en)}
+        {t(lang, product.th, product.en)}
       </h3>
 
       {/* Standards pills */}
@@ -102,8 +102,8 @@ function ProductCard({ product, lang }: { product: Product; lang: Lang }) {
       {/* Variants */}
       <div style={{ marginTop: 'auto', paddingTop: 16, borderTop: '1px solid var(--sug-fog)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-3)', letterSpacing: '0.04em' }}>
-          {product.variants.length} {t(lang, 'ขนาด', 'sizes')} · <span style={{ color: inStockCount > 0 ? 'var(--sug-success)' : 'var(--sug-danger)' }}>
-            {inStockCount} {t(lang, 'มีสต็อก', 'in stock')}
+          {variantsCount} {t(lang, 'ขนาด', 'sizes')} · <span style={{ color: inStockCount > 0 ? 'var(--sug-success)' : 'var(--sug-danger)' }}>
+            {inStockCount > 0 ? t(lang, 'มีสต็อก', 'in stock') : t(lang, 'ไม่มีสต็อก', 'out of stock')}
           </span>
         </span>
         <span style={{ color: hovering ? 'var(--sug-orange)' : 'var(--sug-mist)', fontFamily: 'var(--font-mono)', fontSize: 16, transition: 'color 180ms, transform 180ms', transform: hovering ? 'translateX(4px)' : 'none' }}>→</span>
@@ -114,9 +114,9 @@ function ProductCard({ product, lang }: { product: Product; lang: Lang }) {
 
 export default function CategoryPage({ params }: Props) {
   const [lang, setLang] = useState<Lang>('th');
-  const category = getCategoryByKey(params.category);
+  const categoryBase = getCategoryByKey(params.category);
 
-  if (!category) {
+  if (!categoryBase) {
     return (
       <>
         <Header lang={lang} setLang={setLang} active="products" />
@@ -130,7 +130,42 @@ export default function CategoryPage({ params }: Props) {
     );
   }
 
-  const otherCats = CATEGORIES.filter(c => c.brand === category.brand && c.key !== category.key);
+  const categoryProducts = PRODUCTS.filter(p => p.cat === categoryBase.key);
+  const categoryBrand = categoryProducts[0]?.brand || 'SUG';
+  const colorMap: Record<string, string> = {
+    bolts: '#23247E',
+    screws: '#14154F',
+    sds: '#ef5a1c',
+    nuts: '#3b82f6',
+    anchors: '#10b981',
+    drills: '#f59e0b',
+    tools: '#6b7280'
+  };
+  const descMap: Record<string, { th: string; en: string }> = {
+    bolts: { th: 'สลักเกลียว สกรูตัวผู้ คุณภาพสูงสำหรับทุกงานยึดเกาะโครงสร้าง', en: 'High-quality bolts and structural fasteners for all engineering tasks.' },
+    screws: { th: 'สกรูเกลียวปล่อย สกรูงานไม้ และงานอเนกประสงค์ประเภทต่างๆ', en: 'Wood screws, tapping screws, and multipurpose machine screws.' },
+    sds: { th: 'สกรูเจาะตัวเองสำหรับหลังคาเมทัลชีต และงานยึดเหล็กโดยไม่ต้องเจาะนำ', en: 'Self-drilling screws for roofing and structural steel framing.' },
+    nuts: { th: 'หัวน็อตตัวเมีย แหวนอีแปะ และแหวนสปริงเพื่อความแน่นหนาปลอดภัย', en: 'Hex nuts, flat washers, and spring washers for secure joint locking.' },
+    anchors: { th: 'พุกเหล็ก พุกเคมี และสลักถ่างคอนกรีตมาตรฐานการยึดรับน้ำหนักสูง', en: 'Wedge anchors, sleeve anchors, and chemical anchoring solutions.' },
+    drills: { th: 'ดอกสว่านโคบอลต์ ดอกโรตารี่เจาะคอนกรีตคุณภาพสูง', en: 'HSS-Cobalt and SDS-Plus carbide tipped drill bits.' },
+    tools: { th: 'อุปกรณ์เครื่องมือไฟฟ้า ใบตัด โฮลซอว์เจาะเหล็กคุณภาพดี', en: 'Power tool accessories, bi-metal hole saws, and tooling.' },
+  };
+
+  const categoryColor = colorMap[categoryBase.key] || '#23247E';
+  const categoryStandards = Array.from(new Set(categoryProducts.flatMap(p => p.standards)));
+  const categoryDesc = descMap[categoryBase.key] || { th: categoryBase.th, en: categoryBase.en };
+
+  const category = {
+    ...categoryBase,
+    brand: categoryBrand,
+    color: categoryColor,
+    standards: categoryStandards,
+    products: categoryProducts,
+    descTh: categoryDesc.th,
+    descEn: categoryDesc.en,
+  };
+
+  const otherCats = CATEGORIES.filter(c => c.key !== category.key);
 
   return (
     <>
@@ -157,7 +192,7 @@ export default function CategoryPage({ params }: Props) {
               </Link>
               <span>·</span>
               <span style={{ color: 'rgba(255,255,255,0.85)' }}>
-                {t(lang, category.name_th, category.name_en)}
+                {t(lang, category.th, category.en)}
               </span>
             </nav>
 
@@ -187,10 +222,10 @@ export default function CategoryPage({ params }: Props) {
               color: '#fff',
               margin: '0 0 20px',
             }} lang={lang}>
-              {t(lang, category.name_th, category.name_en)}
+              {t(lang, category.th, category.en)}
             </h1>
             <p style={{ fontSize: 17, lineHeight: 1.7, color: 'rgba(255,255,255,0.78)', maxWidth: 640, margin: '0 0 28px' }} lang={lang}>
-              {t(lang, category.desc_th, category.desc_en)}
+              {t(lang, category.descTh, category.descEn)}
             </p>
 
             {/* Standards */}
@@ -217,7 +252,10 @@ export default function CategoryPage({ params }: Props) {
               </div>
               <div>
                 <div style={{ fontFamily: 'var(--font-display)', fontSize: 36, fontWeight: 700, color: 'var(--sug-orange)', lineHeight: 1 }}>
-                  {category.products.reduce((sum, p) => sum + p.variants.length, 0)}
+                  {category.products.reduce((sum, p) => {
+                    const variantsCount = p.parametric ? (p.attrs?.size?.length || 1) : (p.hasSizes?.length || 1);
+                    return sum + variantsCount;
+                  }, 0)}
                 </div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginTop: 6 }}>{t(lang, 'ขนาดรวม', 'Size variants')}</div>
               </div>
@@ -311,37 +349,42 @@ export default function CategoryPage({ params }: Props) {
             {otherCats.length > 0 && (
               <div style={{ marginTop: 64 }}>
                 <h2 style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--fg-3)', marginBottom: 24 }}>
-                  {t(lang, 'หมวดอื่นของ', 'MORE FROM')} {category.brand}
+                  {t(lang, 'หมวดอื่น', 'MORE CATEGORIES')}
                 </h2>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 2, background: 'var(--sug-fog)', border: '1px solid var(--sug-fog)' }}>
-                  {otherCats.slice(0, 4).map(c => (
-                    <Link
-                      key={c.key}
-                      href={`/products/${c.key}`}
-                      style={{
-                        background: '#fff',
-                        padding: '28px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 8,
-                        textDecoration: 'none',
-                        transition: 'background 180ms',
-                        borderBottom: '2px solid transparent',
-                        position: 'relative',
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--sug-paper)'; e.currentTarget.style.borderBottomColor = 'var(--sug-orange)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderBottomColor = 'transparent'; }}
-                    >
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--sug-orange)', fontWeight: 600, letterSpacing: '0.1em' }}>{c.brand}</span>
-                      <span style={{ fontFamily: lang === 'th' ? 'var(--font-thai)' : 'var(--font-body)', fontSize: 16, fontWeight: 700, color: 'var(--fg-1)' }} lang={lang}>
-                        {t(lang, c.name_th, c.name_en)}
-                      </span>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg-3)', letterSpacing: '0.05em' }}>
-                        {c.products.length} {t(lang, 'รุ่น', 'lines')}
-                      </span>
-                      <span style={{ position: 'absolute', top: 24, right: 24, fontFamily: 'var(--font-mono)', color: 'var(--sug-mist)' }}>→</span>
-                    </Link>
-                  ))}
+                  {otherCats.slice(0, 4).map(c => {
+                    const cProducts = PRODUCTS.filter(p => p.cat === c.key);
+                    const cBrand = cProducts[0]?.brand || 'SUG';
+
+                    return (
+                      <Link
+                        key={c.key}
+                        href={`/products/${c.key}`}
+                        style={{
+                          background: '#fff',
+                          padding: '28px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 8,
+                          textDecoration: 'none',
+                          transition: 'background 180ms',
+                          borderBottom: '2px solid transparent',
+                          position: 'relative',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--sug-paper)'; e.currentTarget.style.borderBottomColor = 'var(--sug-orange)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderBottomColor = 'transparent'; }}
+                      >
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--sug-orange)', fontWeight: 600, letterSpacing: '0.1em' }}>{cBrand}</span>
+                        <span style={{ fontFamily: lang === 'th' ? 'var(--font-thai)' : 'var(--font-body)', fontSize: 16, fontWeight: 700, color: 'var(--fg-1)' }} lang={lang}>
+                          {t(lang, c.th, c.en)}
+                        </span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg-3)', letterSpacing: '0.05em' }}>
+                          {cProducts.length} {t(lang, 'รุ่น', 'lines')}
+                        </span>
+                        <span style={{ position: 'absolute', top: 24, right: 24, fontFamily: 'var(--font-mono)', color: 'var(--sug-mist)' }}>→</span>
+                      </Link>
+                    );
+                  })}
                 </div>
               </div>
             )}

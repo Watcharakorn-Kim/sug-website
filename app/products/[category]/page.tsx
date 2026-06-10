@@ -4,17 +4,13 @@ export { default } from './CategoryPage';
 
 export function generateStaticParams() {
   return [
-    { category: 'roofing' },
-    { category: 'multipurpose' },
-    { category: 'wall' },
-    { category: 'concrete' },
-    { category: 'accessories' },
-    { category: 'general' },
-    { category: 'electrical' },
-    { category: 'stainless' },
-    { category: 'agri' },
-    { category: 'plumbing' },
-    { category: 'fasteners' },
+    { category: 'bolts' },
+    { category: 'screws' },
+    { category: 'sds' },
+    { category: 'nuts' },
+    { category: 'anchors' },
+    { category: 'drills' },
+    { category: 'tools' },
   ];
 }
 
@@ -22,7 +18,7 @@ export async function generateMetadata({ params }: { params: { category: string 
   const cat = getCategoryByKey(params.category);
   if (!cat) return { title: 'Product Category | SUG Fastener' };
   return {
-    title: `${cat.name_th} · ${cat.name_en} | SUG Fastener`,
-    description: cat.desc_th,
+    title: `${cat.th} · ${cat.en} | SUG Fastener`,
+    description: `${cat.th} · ${cat.en} category page.`,
   };
 }

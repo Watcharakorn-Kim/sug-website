@@ -1,417 +1,67 @@
 // ============================================================
-// SUG FASTENER — Complete Product Data (Extended)
+// SUG FASTENER — Complete Product Database & Helpers (TS)
 // ============================================================
 
 export type Brand = 'SUG' | 'TITAN';
-export type System =
-  | 'roofing' | 'multipurpose' | 'wall' | 'concrete' | 'accessories'
-  | 'general' | 'electrical' | 'stainless' | 'agri' | 'plumbing' | 'fasteners';
 
-export interface ProductSpec { key: string; value: string; }
-export interface ProductVariant {
-  sku: string; size: string;
-  length_mm?: number; diameter_mm?: number;
-  pack_qty: number; price_from?: number; in_stock: boolean;
+export interface ProductSpec {
+  key: string;
+  value: string;
 }
+
+export interface ProductAttrs {
+  size?: string[];
+  length?: string[];
+  grade?: string[];
+  finish?: string[];
+  [key: string]: string[] | undefined;
+}
+
 export interface Product {
-  id: string; brand: Brand; system: System; sku_prefix: string;
-  name_th: string; name_en: string; desc_th: string; desc_en: string;
-  standards: string[]; specs: ProductSpec[]; variants: ProductVariant[];
-  image?: string; isNew?: boolean; isBestSeller?: boolean;
-  crossRef?: { brand: string; sku: string }[];
+  id: string;
+  cat: string;
+  brand: Brand;
+  seed: number;
+  th: string;
+  en: string;
+  standards: string[];
+  img: string | null;
+  parametric: boolean;
+  attrs?: ProductAttrs;
+  hasSizes?: string[]; // for flat products with size options
+  sku?: string;        // for flat products
+  priceList?: number;  // for flat products base list price
+  base?: number;       // for parametric products base price
+  breaks: [number, number][]; // [qty, multiplier]
+  lead: {
+    stock: string;
+    days: number;
+  };
+  premium?: boolean;
+  specTh?: string;
+  specEn?: string;
 }
+
 export interface Category {
-  key: System; brand: Brand;
-  name_th: string; name_en: string; desc_th: string; desc_en: string;
-  standards: string[]; color: string; products: Product[];
+  key: string;
+  th: string;
+  en: string;
+  parametric: boolean;
 }
 
-export const PRODUCTS: Product[] = [
-  // ── SUG ROOFING ─────────────────────────────────────────────────────────
-  {
-    id: 'sug-bimetal-hex',
-    brand: 'SUG', system: 'roofing', sku_prefix: 'AS3566',
-    name_th: 'สลักเกลียวหัวหกเหลี่ยม Bi-Metal 304',
-    name_en: 'Bi-Metal 304 Self-drilling Screw (Hex Head)',
-    desc_th: 'สกรูปลายสว่าน Bi-Metal 304 หัวหกเหลี่ยม EPDM washer ใช้ยึดกระเบื้องโลหะ เมทัลชีต เหล็กรูปพรรณ ทนเกลือสเปรย์ >1,000 ชั่วโมง มาตรฐาน AS3566 Class 3',
-    desc_en: 'Bi-Metal 304 self-drilling hex head screw with EPDM washer. Fastens metal sheet, tiles, purlins. Salt-spray >1,000h. AS3566 Class 3.',
-    standards: ['AS3566 Class 3', 'SALT-SPRAY 1000H', 'ISO 4762'],
-    specs: [
-      { key: 'เกรดสแตนเลส', value: 'SUS304' },
-      { key: 'หัวสกรู', value: 'Hex Washer Head + EPDM' },
-      { key: 'ปลายสว่าน', value: 'Bi-Metal (ตัดเหล็ก C90 ถึง 2 mm)' },
-      { key: 'การชุบ', value: 'Bi-Metal 304 + EPDM Washer' },
-      { key: 'มาตรฐาน', value: 'AS3566 Class 3' },
-      { key: 'ทนเกลือสเปรย์', value: '>1,000 ชั่วโมง (Bureau Veritas)' },
-    ],
-    variants: [
-      { sku: 'AS-48x25', size: '4.8 × 25 mm', length_mm: 25, diameter_mm: 4.8, pack_qty: 250, in_stock: true },
-      { sku: 'AS-48x38', size: '4.8 × 38 mm', length_mm: 38, diameter_mm: 4.8, pack_qty: 250, in_stock: true },
-      { sku: 'AS-48x50', size: '4.8 × 50 mm', length_mm: 50, diameter_mm: 4.8, pack_qty: 250, in_stock: true },
-      { sku: 'AS-48x65', size: '4.8 × 65 mm', length_mm: 65, diameter_mm: 4.8, pack_qty: 200, in_stock: true },
-      { sku: 'AS-48x75', size: '4.8 × 75 mm', length_mm: 75, diameter_mm: 4.8, pack_qty: 200, in_stock: false },
-      { sku: 'AS-55x25', size: '5.5 × 25 mm', length_mm: 25, diameter_mm: 5.5, pack_qty: 200, in_stock: true },
-      { sku: 'AS-55x38', size: '5.5 × 38 mm', length_mm: 38, diameter_mm: 5.5, pack_qty: 200, in_stock: true },
-      { sku: 'AS-55x50', size: '5.5 × 50 mm', length_mm: 50, diameter_mm: 5.5, pack_qty: 200, in_stock: true },
-    ],
-    image: '/product-drill-orange.png', isBestSeller: true,
-    crossRef: [
-      { brand: 'Hilti', sku: 'S-WH 15' },
-      { brand: 'Würth', sku: 'ASSY-EPDM-304' },
-    ],
-  },
-  {
-    id: 'sug-hex-galv',
-    brand: 'SUG', system: 'roofing', sku_prefix: 'HG',
-    name_th: 'สลักเกลียวหัวหกเหลี่ยม ชุบสังกะสี',
-    name_en: 'Galvanised Self-drilling Screw (Hex Head)',
-    desc_th: 'สกรูปลายสว่านหัวหกเหลี่ยม ชุบสังกะสีไฟฟ้า + EPDM washer สำหรับงานหลังคาทั่วไปและงานโครงสร้างเบา',
-    desc_en: 'EG hex-head self-drilling with EPDM. General roofing and light structure.',
-    standards: ['DIN 7504', 'ISO 15480'],
-    specs: [
-      { key: 'การชุบผิว', value: 'Electro-galvanised (EG)' },
-      { key: 'หัวสกรู', value: 'Hex Washer Head + EPDM' },
-      { key: 'ปลาย', value: 'Self-drilling SD Point' },
-    ],
-    variants: [
-      { sku: 'HG-48x25', size: '4.8 × 25 mm', pack_qty: 500, in_stock: true },
-      { sku: 'HG-48x38', size: '4.8 × 38 mm', pack_qty: 500, in_stock: true },
-      { sku: 'HG-48x50', size: '4.8 × 50 mm', pack_qty: 500, in_stock: true },
-      { sku: 'HG-48x65', size: '4.8 × 65 mm', pack_qty: 500, in_stock: true },
-      { sku: 'HG-55x38', size: '5.5 × 38 mm', pack_qty: 400, in_stock: true },
-      { sku: 'HG-55x50', size: '5.5 × 50 mm', pack_qty: 400, in_stock: false },
-    ],
-    image: '/product-drill-blue.png',
-    crossRef: [{ brand: 'Fischer', sku: 'FPF II WT' }],
-  },
-  {
-    id: 'sug-tile-screw',
-    brand: 'SUG', system: 'roofing', sku_prefix: 'TS',
-    name_th: 'สกรูยึดกระเบื้องหลังคา (Tile Screw)',
-    name_en: 'Tile Roofing Screw',
-    desc_th: 'สกรูหัวกลมชุบสี สำหรับยึดกระเบื้องซีเมนต์ลอนคู่ ลอนเล็ก มี EPDM washer กันน้ำ ทนการกัดกร่อน',
-    desc_en: 'Coloured round-head screw for cement roof tiles. EPDM washer. Corrosion resistant.',
-    standards: ['AS3566 Class 2', 'DIN 7504'],
-    specs: [
-      { key: 'หัวสกรู', value: 'Pan Head + EPDM Washer' },
-      { key: 'สี', value: 'เทา / น้ำตาล / แดงอิฐ (ตามสี RAL)' },
-      { key: 'วัสดุ', value: 'Carbon steel + EG + colour coat' },
-    ],
-    variants: [
-      { sku: 'TS-55x55', size: '5.5 × 55 mm', pack_qty: 200, in_stock: true },
-      { sku: 'TS-55x65', size: '5.5 × 65 mm', pack_qty: 200, in_stock: true },
-      { sku: 'TS-55x75', size: '5.5 × 75 mm', pack_qty: 200, in_stock: true },
-      { sku: 'TS-55x90', size: '5.5 × 90 mm', pack_qty: 150, in_stock: false },
-    ],
-    isNew: true,
-  },
-  // ── SUG MULTIPURPOSE ────────────────────────────────────────────────────
-  {
-    id: 'sug-wave-dome',
-    brand: 'SUG', system: 'multipurpose', sku_prefix: 'WD',
-    name_th: 'สลักเกลียวหัว WAVE DOME (HWH)',
-    name_en: 'Wave Dome Head Self-drilling Screw',
-    desc_th: 'สกรูหัว WAVE DOME (HWH) ใช้ยึดเหล็กรูปพรรณกับแปและโครงสร้างเหล็ก งานอเนกประสงค์ในโรงงานอุตสาหกรรม',
-    desc_en: 'Wave Dome Head (HWH) for steel framing and purlin fastening. Industrial multipurpose.',
-    standards: ['DIN 7504', 'T-17 Point'],
-    specs: [
-      { key: 'หัวสกรู', value: 'Wave Dome Head (HWH)' },
-      { key: 'ปลาย', value: 'T-17 Self-drilling' },
-      { key: 'การชุบ', value: 'Zinc phosphate + mechanical plating' },
-    ],
-    variants: [
-      { sku: 'WD-55x25', size: '5.5 × 25 mm', pack_qty: 500, in_stock: true },
-      { sku: 'WD-55x38', size: '5.5 × 38 mm', pack_qty: 500, in_stock: true },
-      { sku: 'WD-55x50', size: '5.5 × 50 mm', pack_qty: 500, in_stock: true },
-      { sku: 'WD-68x25', size: '6.8 × 25 mm', pack_qty: 250, in_stock: true },
-      { sku: 'WD-68x38', size: '6.8 × 38 mm', pack_qty: 250, in_stock: true },
-    ],
-    isNew: true,
-  },
-  {
-    id: 'sug-hex-tek',
-    brand: 'SUG', system: 'multipurpose', sku_prefix: 'TEK',
-    name_th: 'สกรู TEK ยึดเหล็กหนา (Heavy Gauge)',
-    name_en: 'TEK Screw for Heavy Gauge Steel',
-    desc_th: 'สกรู TEK ปลาย #3 / #5 สำหรับเจาะเหล็กหนาสูงสุด 12 mm โดยไม่ต้องเจาะล่วงหน้า ลดต้นทุนการทำงาน',
-    desc_en: 'TEK #3 / #5 point for drilling steel up to 12 mm without pre-drilling. Saves time on heavy structure.',
-    standards: ['AS3566', 'ASTM C1513'],
-    specs: [
-      { key: 'ปลายสว่าน', value: 'TEK #3 (เจาะเหล็ก 3-6 mm) / #5 (6-12 mm)' },
-      { key: 'หัวสกรู', value: 'Hex Washer Head (HWH)' },
-      { key: 'การชุบ', value: 'Bi-Metal 304 / EG' },
-    ],
-    variants: [
-      { sku: 'TEK3-68x25', size: '6.8 × 25 mm TEK3', pack_qty: 200, in_stock: true },
-      { sku: 'TEK3-68x38', size: '6.8 × 38 mm TEK3', pack_qty: 200, in_stock: true },
-      { sku: 'TEK5-68x25', size: '6.8 × 25 mm TEK5', pack_qty: 100, in_stock: true },
-      { sku: 'TEK5-68x38', size: '6.8 × 38 mm TEK5', pack_qty: 100, in_stock: false },
-    ],
-    isBestSeller: true,
-  },
-  // ── SUG WALL ─────────────────────────────────────────────────────────────
-  {
-    id: 'sug-csh',
-    brand: 'SUG', system: 'wall', sku_prefix: 'CSH',
-    name_th: 'สลักเกลียว CSH ไฟเบอร์ซีเมนต์',
-    name_en: 'CSH Fibre-cement Board Screw',
-    desc_th: 'สกรูเฉพาะสำหรับไฟเบอร์ซีเมนต์ หัว Countersunk ลดการแตกร้าว ปลาย Double-thread ยึดแน่น ชุบสีดำกันสนิม',
-    desc_en: 'Dedicated fibre-cement screw. Countersunk head prevents cracking. Double-thread tip. Black phosphate.',
-    standards: ['DIN 7504', 'ISO 15480'],
-    specs: [
-      { key: 'หัวสกรู', value: 'Bugle Head (Countersunk)' },
-      { key: 'ปลาย', value: 'Double-thread Self-drilling' },
-      { key: 'การชุบ', value: 'Black phosphate' },
-      { key: 'วัสดุ', value: 'Carbon steel hardened' },
-    ],
-    variants: [
-      { sku: 'CSH-42x65', size: '4.2 × 65 mm', pack_qty: 200, in_stock: true },
-      { sku: 'CSH-42x75', size: '4.2 × 75 mm', pack_qty: 200, in_stock: true },
-      { sku: 'CSH-42x90', size: '4.2 × 90 mm', pack_qty: 150, in_stock: true },
-      { sku: 'CSH-42x110', size: '4.2 × 110 mm', pack_qty: 100, in_stock: false },
-    ],
-    isBestSeller: true,
-    crossRef: [{ brand: 'Bossard', sku: 'BN8890' }],
-  },
-  {
-    id: 'sug-rib-wall',
-    brand: 'SUG', system: 'wall', sku_prefix: 'RIB',
-    name_th: 'สกรู RIB ยึดผนังเบา (Dry Wall)',
-    name_en: 'RIB Drywall & Partition Screw',
-    desc_th: 'สกรูหัว Bugle เกลียว fine thread สำหรับยึดแผ่นยิปซัมและผนังเบา ชุบสีดำ ไม่แตกร้าว ง่ายต่อการไสหัวให้เสมอ',
-    desc_en: 'Bugle head fine thread for gypsum board and drywall. Black. Countersinks flush.',
-    standards: ['DIN 18182', 'ASTM C1002'],
-    specs: [
-      { key: 'ปลาย', value: 'Sharp point (ไม่ต้องเจาะล่วงหน้า)' },
-      { key: 'เกลียว', value: 'Fine thread (HF) / Coarse thread (HG)' },
-      { key: 'การชุบ', value: 'Black phosphate' },
-    ],
-    variants: [
-      { sku: 'RIB-35x25', size: '3.5 × 25 mm', pack_qty: 1000, in_stock: true },
-      { sku: 'RIB-35x32', size: '3.5 × 32 mm', pack_qty: 1000, in_stock: true },
-      { sku: 'RIB-35x38', size: '3.5 × 38 mm', pack_qty: 1000, in_stock: true },
-      { sku: 'RIB-38x45', size: '3.8 × 45 mm', pack_qty: 500, in_stock: true },
-    ],
-  },
-  // ── SUG CONCRETE ─────────────────────────────────────────────────────────
-  {
-    id: 'sug-anchor-bolt',
-    brand: 'SUG', system: 'concrete', sku_prefix: 'AB',
-    name_th: 'Anchor Bolt หัวหกเหลี่ยม',
-    name_en: 'Hex Head Anchor Bolt',
-    desc_th: 'Anchor bolt ยึดโครงสร้างกับคอนกรีต ETA certified ทนแรงดึงสูง ชุบสังกะสีร้อน 45µm',
-    desc_en: 'Structural concrete anchor bolt. ETA certified. High tensile. HDG 45µm.',
-    standards: ['ETA', 'DIN 931', 'ASTM A307'],
-    specs: [
-      { key: 'เกรด', value: 'Grade 8.8' },
-      { key: 'การชุบ', value: 'Hot-dip galvanised 45µm' },
-      { key: 'มาตรฐาน', value: 'ETA 16/0143' },
-    ],
-    variants: [
-      { sku: 'AB-M8x80', size: 'M8 × 80 mm', pack_qty: 50, in_stock: true },
-      { sku: 'AB-M10x100', size: 'M10 × 100 mm', pack_qty: 25, in_stock: true },
-      { sku: 'AB-M12x120', size: 'M12 × 120 mm', pack_qty: 25, in_stock: true },
-      { sku: 'AB-M16x150', size: 'M16 × 150 mm', pack_qty: 10, in_stock: true },
-    ],
-    crossRef: [{ brand: 'Hilti', sku: 'HST3 M10' }, { brand: 'Fischer', sku: 'FAZ II 10/10' }],
-  },
-  {
-    id: 'sug-concrete-screw',
-    brand: 'SUG', system: 'concrete', sku_prefix: 'CS',
-    name_th: 'สกรูคอนกรีต (Concrete Screw)',
-    name_en: 'Concrete Screw (Hex Flange)',
-    desc_th: 'สกรูเจาะคอนกรีต หัวหกเหลี่ยม Flange ชุบสีฟ้ากันสนิม ไม่ต้องใช้พุก เจาะรูนำแล้วขันได้เลย',
-    desc_en: 'Hex flange concrete screw. Blue corrosion coat. No anchor needed — drill, then drive.',
-    standards: ['ETA 14/0041', 'AS4617'],
-    specs: [
-      { key: 'หัวสกรู', value: 'Hex Flange Head' },
-      { key: 'การชุบ', value: 'Blue corrosion protection coating' },
-      { key: 'ใช้กับ', value: 'คอนกรีต อิฐ หิน' },
-    ],
-    variants: [
-      { sku: 'CS-75x50', size: '7.5 × 50 mm', pack_qty: 100, in_stock: true },
-      { sku: 'CS-75x70', size: '7.5 × 70 mm', pack_qty: 100, in_stock: true },
-      { sku: 'CS-75x90', size: '7.5 × 90 mm', pack_qty: 50, in_stock: true },
-      { sku: 'CS-10x100', size: '10 × 100 mm', pack_qty: 25, in_stock: false },
-    ],
-    isNew: true,
-    crossRef: [{ brand: 'Hilti', sku: 'HUS-H 7.5' }, { brand: 'Würth', sku: 'AMO LT 7.5' }],
-  },
-  // ── SUG ACCESSORIES ─────────────────────────────────────────────────────
-  {
-    id: 'sug-epdm-washer',
-    brand: 'SUG', system: 'accessories', sku_prefix: 'EPDM',
-    name_th: 'แหวน EPDM + Aluminum (อะไหล่)',
-    name_en: 'EPDM + Aluminium Sealing Washer',
-    desc_th: 'แหวนยาง EPDM + Aluminum สำหรับสกรูหลังคา กันน้ำซึมแบบถาวร ทนแสง UV ทนอุณหภูมิ -40°C ถึง +120°C',
-    desc_en: 'EPDM + Aluminium sealing washer for roofing screws. UV resistant. -40°C to +120°C.',
-    standards: ['DIN 6902', 'EPDM ASTM D2000'],
-    specs: [
-      { key: 'วัสดุ', value: 'EPDM rubber + Aluminium' },
-      { key: 'ทนอุณหภูมิ', value: '-40°C to +120°C' },
-      { key: 'ทนแสง UV', value: 'ใช่' },
-    ],
-    variants: [
-      { sku: 'EPDM-16mm', size: 'Ø 16 mm (สำหรับ 4.8 mm)', pack_qty: 1000, in_stock: true },
-      { sku: 'EPDM-19mm', size: 'Ø 19 mm (สำหรับ 5.5 mm)', pack_qty: 1000, in_stock: true },
-      { sku: 'EPDM-22mm', size: 'Ø 22 mm (สำหรับ 6.8 mm)', pack_qty: 500, in_stock: true },
-    ],
-  },
-  // ── TITAN GENERAL ────────────────────────────────────────────────────────
-  {
-    id: 'titan-hex-bolt',
-    brand: 'TITAN', system: 'general', sku_prefix: 'THB',
-    name_th: 'สลักเกลียวหัวหกเหลี่ยม DIN 931',
-    name_en: 'Hex Bolt DIN 931 (Full / Partial Thread)',
-    desc_th: 'สลักเกลียวหัวหกเหลี่ยม DIN 931 เกรด 8.8 เหล็กกล้าคาร์บอน ทุกขนาด M4–M30',
-    desc_en: 'Hex bolt DIN 931 Grade 8.8 carbon steel. All sizes M4 to M30.',
-    standards: ['DIN 931', 'ISO 4014', 'Grade 8.8'],
-    specs: [
-      { key: 'เกรด', value: '8.8' },
-      { key: 'วัสดุ', value: 'Carbon steel (10.9 option)' },
-      { key: 'การชุบ', value: 'EG / HDG / Plain' },
-    ],
-    variants: [
-      { sku: 'THB-M6x20', size: 'M6 × 20 mm', pack_qty: 200, in_stock: true },
-      { sku: 'THB-M6x30', size: 'M6 × 30 mm', pack_qty: 200, in_stock: true },
-      { sku: 'THB-M8x25', size: 'M8 × 25 mm', pack_qty: 100, in_stock: true },
-      { sku: 'THB-M8x40', size: 'M8 × 40 mm', pack_qty: 100, in_stock: true },
-      { sku: 'THB-M10x40', size: 'M10 × 40 mm', pack_qty: 50, in_stock: true },
-      { sku: 'THB-M10x60', size: 'M10 × 60 mm', pack_qty: 50, in_stock: true },
-      { sku: 'THB-M12x50', size: 'M12 × 50 mm', pack_qty: 25, in_stock: true },
-      { sku: 'THB-M16x60', size: 'M16 × 60 mm', pack_qty: 25, in_stock: false },
-    ],
-    isBestSeller: true,
-    crossRef: [{ brand: 'Würth', sku: 'HBS 931 8.8' }, { brand: 'Bossard', sku: 'BN33' }],
-  },
-  {
-    id: 'titan-hex-nut',
-    brand: 'TITAN', system: 'general', sku_prefix: 'THN',
-    name_th: 'น็อตหกเหลี่ยม DIN 934',
-    name_en: 'Hex Nut DIN 934',
-    desc_th: 'น็อตหกเหลี่ยม DIN 934 เกรด 8 ทุกขนาด M4–M30',
-    desc_en: 'Hex nut DIN 934 Grade 8. All sizes M4 to M30.',
-    standards: ['DIN 934', 'ISO 4032', 'Grade 8'],
-    specs: [
-      { key: 'เกรด', value: '8' },
-      { key: 'การชุบ', value: 'EG / HDG / Plain' },
-    ],
-    variants: [
-      { sku: 'THN-M6', size: 'M6', pack_qty: 500, in_stock: true },
-      { sku: 'THN-M8', size: 'M8', pack_qty: 500, in_stock: true },
-      { sku: 'THN-M10', size: 'M10', pack_qty: 200, in_stock: true },
-      { sku: 'THN-M12', size: 'M12', pack_qty: 100, in_stock: true },
-      { sku: 'THN-M16', size: 'M16', pack_qty: 50, in_stock: true },
-    ],
-    isBestSeller: true,
-  },
-  {
-    id: 'titan-flat-washer',
-    brand: 'TITAN', system: 'general', sku_prefix: 'TFW',
-    name_th: 'แหวนอีแปะ DIN 125',
-    name_en: 'Flat Washer DIN 125',
-    desc_th: 'แหวนอีแปะ DIN 125 เหล็กกล้า ชุบสังกะสีไฟฟ้า ทุกขนาด M5–M24',
-    desc_en: 'Flat washer DIN 125 steel EG. All sizes M5 to M24.',
-    standards: ['DIN 125', 'ISO 7089'],
-    specs: [
-      { key: 'วัสดุ', value: 'Steel + EG / SUS304' },
-      { key: 'มาตรฐาน', value: 'DIN 125A / 125B' },
-    ],
-    variants: [
-      { sku: 'TFW-M6', size: 'M6', pack_qty: 1000, in_stock: true },
-      { sku: 'TFW-M8', size: 'M8', pack_qty: 500, in_stock: true },
-      { sku: 'TFW-M10', size: 'M10', pack_qty: 200, in_stock: true },
-      { sku: 'TFW-M12', size: 'M12', pack_qty: 100, in_stock: true },
-    ],
-  },
-  // ── TITAN STAINLESS ──────────────────────────────────────────────────────
-  {
-    id: 'titan-ss-bolt',
-    brand: 'TITAN', system: 'stainless', sku_prefix: 'TSS',
-    name_th: 'สลักเกลียว SUS304 DIN 933',
-    name_en: 'Stainless SUS304 Hex Bolt DIN 933',
-    desc_th: 'สลักเกลียวสแตนเลส SUS304 หัวหกเหลี่ยม DIN 933 เกลียวเต็ม ทนกรด-ด่าง ชายทะเล โรงงานอาหาร',
-    desc_en: 'SUS304 stainless hex bolt DIN 933. Full thread. Acid, marine, food-grade resistant.',
-    standards: ['DIN 933', 'ISO 4017', 'A2-70'],
-    specs: [
-      { key: 'เกรด', value: 'SUS304 (A2-70)' },
-      { key: 'ความต้านแรงดึง', value: '700 MPa' },
-      { key: 'สภาพแวดล้อม', value: 'ทนกรด-ด่าง ชายทะเล อาหาร' },
-    ],
-    variants: [
-      { sku: 'TSS-M6x20', size: 'M6 × 20 mm', pack_qty: 100, in_stock: true },
-      { sku: 'TSS-M8x25', size: 'M8 × 25 mm', pack_qty: 50, in_stock: true },
-      { sku: 'TSS-M8x40', size: 'M8 × 40 mm', pack_qty: 50, in_stock: true },
-      { sku: 'TSS-M10x40', size: 'M10 × 40 mm', pack_qty: 25, in_stock: true },
-      { sku: 'TSS-M12x50', size: 'M12 × 50 mm', pack_qty: 25, in_stock: false },
-    ],
-    isNew: true,
-    crossRef: [{ brand: 'Bossard', sku: 'BN5' }, { brand: 'Würth', sku: 'ISK SS A2' }],
-  },
-  {
-    id: 'titan-ss316-bolt',
-    brand: 'TITAN', system: 'stainless', sku_prefix: 'TSS316',
-    name_th: 'สลักเกลียว SUS316 (ทะเล / เคมี)',
-    name_en: 'Stainless SUS316 Hex Bolt (Marine/Chemical)',
-    desc_th: 'SUS316 ทนกรดคลอไรด์ ทนทะเลสูงสุด เหมาะสำหรับโรงงานกระดาษ อาหารทะเล เคมีภัณฑ์',
-    desc_en: 'SUS316 (A4-80) — superior chloride resistance. Chemical, paper, seafood processing.',
-    standards: ['DIN 933', 'A4-80', 'ASTM A193 B8M'],
-    specs: [
-      { key: 'เกรด', value: 'SUS316 (A4-80)' },
-      { key: 'ความต้านแรงดึง', value: '800 MPa' },
-      { key: 'ทน', value: 'กรดคลอไรด์ / ทะเล / เคมีภัณฑ์' },
-    ],
-    variants: [
-      { sku: 'TSS316-M8x25', size: 'M8 × 25 mm', pack_qty: 25, in_stock: true },
-      { sku: 'TSS316-M10x40', size: 'M10 × 40 mm', pack_qty: 25, in_stock: true },
-      { sku: 'TSS316-M12x50', size: 'M12 × 50 mm', pack_qty: 10, in_stock: false },
-    ],
-    isBestSeller: true,
-  },
-  // ── TITAN ELECTRICAL ────────────────────────────────────────────────────
-  {
-    id: 'titan-electrical-bolt',
-    brand: 'TITAN', system: 'electrical', sku_prefix: 'TEB',
-    name_th: 'สลักเกลียวงานไฟฟ้า (ตู้ควบคุม)',
-    name_en: 'Electrical Enclosure Bolt & Nut Set',
-    desc_th: 'ชุดสลักเกลียว + น็อต สำหรับงานตู้ควบคุมไฟฟ้า ชุบสังกะสีขาว ทนสนิม ไม่นำกรด',
-    desc_en: 'Bolt & nut set for electrical enclosures. White zinc. Corrosion resistant.',
-    standards: ['DIN 933', 'IEC 60529'],
-    specs: [
-      { key: 'การชุบ', value: 'White zinc plated' },
-      { key: 'ใช้กับ', value: 'ตู้ไฟ MDB/SMDB, cable tray, conduit' },
-    ],
-    variants: [
-      { sku: 'TEB-M5x12', size: 'M5 × 12 mm', pack_qty: 200, in_stock: true },
-      { sku: 'TEB-M6x12', size: 'M6 × 12 mm', pack_qty: 200, in_stock: true },
-      { sku: 'TEB-M6x16', size: 'M6 × 16 mm', pack_qty: 200, in_stock: true },
-      { sku: 'TEB-M8x20', size: 'M8 × 20 mm', pack_qty: 100, in_stock: true },
-    ],
-  },
-  // ── TITAN AGRICULTURE ───────────────────────────────────────────────────
-  {
-    id: 'titan-agri-bolt',
-    brand: 'TITAN', system: 'agri', sku_prefix: 'TAB',
-    name_th: 'สลักเกลียวเกรด 10.9 งานเครื่องกลเกษตร',
-    name_en: 'Grade 10.9 Agricultural Machinery Bolt',
-    desc_th: 'สลักเกลียว High-tensile เกรด 10.9 สำหรับเครื่องจักรกลเกษตร รถไถ เครื่องเกี่ยว ทนแรงสั่นสะเทือน',
-    desc_en: 'Grade 10.9 high-tensile bolt for agricultural machinery. Vibration resistant.',
-    standards: ['DIN 931', 'ISO 8.8 / 10.9', 'Grade 10.9'],
-    specs: [
-      { key: 'เกรด', value: '10.9 (High-tensile)' },
-      { key: 'วัสดุ', value: 'Alloy steel (42CrMo)' },
-      { key: 'การชุบ', value: 'Yellow chromate / Plain' },
-    ],
-    variants: [
-      { sku: 'TAB-M10x40', size: 'M10 × 40 mm', pack_qty: 50, in_stock: true },
-      { sku: 'TAB-M12x50', size: 'M12 × 50 mm', pack_qty: 25, in_stock: true },
-      { sku: 'TAB-M14x60', size: 'M14 × 60 mm', pack_qty: 25, in_stock: true },
-      { sku: 'TAB-M16x70', size: 'M16 × 70 mm', pack_qty: 10, in_stock: false },
-    ],
-  },
-];
+export interface WorkSystem {
+  key: string;
+  th: string;
+  en: string;
+  tagTh: string;
+  tagEn: string;
+  std: string;
+  img: string | null;
+  blurbTh: string;
+  blurbEn: string;
+  products: string[]; // product IDs
+}
 
-// ── CROSS-REFERENCE DATABASE ────────────────────────────────────────────────
 export interface CrossRefEntry {
   competitor_brand: string;
   competitor_sku: string;
@@ -422,53 +72,390 @@ export interface CrossRefEntry {
   notes_en: string;
 }
 
-export const CROSS_REF_DB: CrossRefEntry[] = [
-  { competitor_brand: 'Hilti', competitor_sku: 'S-WH 15', competitor_name: 'Hilti Hex washer head screw', sug_product_id: 'sug-bimetal-hex', match_level: 'exact', notes_th: 'Bi-Metal 304 ทนเกลือสเปรย์เทียบเท่า', notes_en: 'Bi-Metal 304 — equivalent salt-spray performance.' },
-  { competitor_brand: 'Hilti', competitor_sku: 'S-WH 15-38', competitor_name: 'Hilti Self-drilling 38mm', sug_product_id: 'sug-bimetal-hex', match_level: 'exact', notes_th: 'เทียบขนาด 4.8×38', notes_en: 'Match: 4.8×38 mm variant.' },
-  { competitor_brand: 'Hilti', competitor_sku: 'HST3 M10', competitor_name: 'Hilti Anchor bolt HST3', sug_product_id: 'sug-anchor-bolt', match_level: 'equivalent', notes_th: 'ETA certified เทียบเท่า Hilti HST3', notes_en: 'ETA certified equivalent to Hilti HST3.' },
-  { competitor_brand: 'Fischer', competitor_sku: 'FPF II WT', competitor_name: 'Fischer self-drilling', sug_product_id: 'sug-hex-galv', match_level: 'equivalent', notes_th: 'EG coating เทียบเท่า', notes_en: 'EG coating equivalent.' },
-  { competitor_brand: 'Fischer', competitor_sku: 'FAZ II 10/10', competitor_name: 'Fischer anchor FAZ II', sug_product_id: 'sug-anchor-bolt', match_level: 'equivalent', notes_th: 'ETA anchor เทียบเท่า M10×100', notes_en: 'ETA equivalent anchor M10×100.' },
-  { competitor_brand: 'Würth', competitor_sku: 'ASSY-EPDM-304', competitor_name: 'Würth ASSY EPDM 304', sug_product_id: 'sug-bimetal-hex', match_level: 'exact', notes_th: 'ทั้งสองรุ่น AS3566 Class 3', notes_en: 'Both AS3566 Class 3 certified.' },
-  { competitor_brand: 'Würth', competitor_sku: 'HBS 931 8.8', competitor_name: 'Würth hex bolt 8.8', sug_product_id: 'titan-hex-bolt', match_level: 'exact', notes_th: 'DIN 931 เกรด 8.8 เทียบเท่า', notes_en: 'DIN 931 grade 8.8 direct match.' },
-  { competitor_brand: 'Würth', competitor_sku: 'AMO LT 7.5', competitor_name: 'Würth AMO concrete screw', sug_product_id: 'sug-concrete-screw', match_level: 'equivalent', notes_th: 'สกรูคอนกรีต hex flange เทียบเท่า', notes_en: 'Hex flange concrete screw equivalent.' },
-  { competitor_brand: 'Bossard', competitor_sku: 'BN8890', competitor_name: 'Bossard fibre-cement screw', sug_product_id: 'sug-csh', match_level: 'equivalent', notes_th: 'CSH เทียบเท่า Bossard BN8890', notes_en: 'CSH equivalent to Bossard BN8890.' },
-  { competitor_brand: 'Bossard', competitor_sku: 'BN33', competitor_name: 'Bossard hex bolt', sug_product_id: 'titan-hex-bolt', match_level: 'exact', notes_th: 'DIN 931 เกรด 8.8 เทียบเท่า', notes_en: 'DIN 931 grade 8.8 direct match.' },
-  { competitor_brand: 'Bossard', competitor_sku: 'BN5', competitor_name: 'Bossard SS bolt', sug_product_id: 'titan-ss-bolt', match_level: 'exact', notes_th: 'SUS304 A2-70 เทียบเท่า', notes_en: 'SUS304 A2-70 direct match.' },
+// ── Branches for stock-by-province ──
+export const BRANCHES = [
+  { code: 'SPK', th: 'สมุทรปราการ (คลังหลัก)', en: 'Samut Prakan (HQ)' },
+  { code: 'BKK', th: 'กรุงเทพฯ บางนา', en: 'Bangkok Bangna' },
+  { code: 'CNX', th: 'เชียงใหม่', en: 'Chiang Mai' },
+  { code: 'KKC', th: 'ขอนแก่น', en: 'Khon Kaen' },
+  { code: 'HDY', th: 'หาดใหญ่ สงขลา', en: 'Hat Yai' },
 ];
 
-// ── CATEGORIES ──────────────────────────────────────────────────────────────
 export const CATEGORIES: Category[] = [
-  { key: 'roofing', brand: 'SUG', name_th: 'ระบบหลังคา', name_en: 'Roofing System', desc_th: 'Bi-Metal 304 · เมทัลชีต · EPDM — AS3566 Class 3 · 1,000h salt-spray', desc_en: 'Bi-Metal 304 · metal sheet · EPDM — AS3566 Class 3 · 1,000h salt-spray', standards: ['AS3566 Class 3', 'SALT-SPRAY 1000H', 'DIN 7504'], color: '#2B2C91', products: PRODUCTS.filter(p => p.system === 'roofing') },
-  { key: 'multipurpose', brand: 'SUG', name_th: 'งานอเนกประสงค์', name_en: 'Multipurpose', desc_th: 'แปะแนงเหล็ก · WAVE DOME · TEK · โครงสร้างเหล็ก', desc_en: 'Steel purlins · WAVE DOME · TEK · structural framing', standards: ['T-17 Point', 'TEK #3/#5', 'DIN 7504'], color: '#2B2C91', products: PRODUCTS.filter(p => p.system === 'multipurpose') },
-  { key: 'wall', brand: 'SUG', name_th: 'ผนัง / ไฟเบอร์ซีเมนต์', name_en: 'Wall / Fibre-cement', desc_th: 'CSH · RIB · ยิปซัม · ซีเมนต์บอร์ด', desc_en: 'CSH · RIB · gypsum · cement board', standards: ['DIN 7504', 'ISO 15480', 'DIN 18182'], color: '#2B2C91', products: PRODUCTS.filter(p => p.system === 'wall') },
-  { key: 'concrete', brand: 'SUG', name_th: 'งานคอนกรีต', name_en: 'Concrete', desc_th: 'Anchor bolt · Concrete screw · Hex flange', desc_en: 'Anchor bolts · Concrete screws · Hex flange', standards: ['ETA', 'DIN 931', 'AS4617'], color: '#2B2C91', products: PRODUCTS.filter(p => p.system === 'concrete') },
-  { key: 'accessories', brand: 'SUG', name_th: 'อุปกรณ์เสริม', name_en: 'Accessories', desc_th: 'EPDM washer · รางน้ำ · แป · เครื่องมือยึด', desc_en: 'EPDM washer · gutters · purlins · fixing tools', standards: ['DIN 6902', 'EPDM ASTM D2000'], color: '#2B2C91', products: PRODUCTS.filter(p => p.system === 'accessories') },
-  { key: 'general', brand: 'TITAN', name_th: 'น็อตมาตรฐานทั่วไป', name_en: 'General Standard', desc_th: 'สลักเกลียว น็อต แหวน ทุกขนาด DIN · JIS · ISO', desc_en: 'Bolts, nuts, washers — all standard sizes', standards: ['DIN 931', 'DIN 934', 'ISO 4014', 'Grade 8.8'], color: '#202B77', products: PRODUCTS.filter(p => p.system === 'general') },
-  { key: 'electrical', brand: 'TITAN', name_th: 'อุตสาหกรรมงานไฟฟ้า', name_en: 'Electrical Industry', desc_th: 'ตู้ควบคุม · cable tray · conduit · grounding', desc_en: 'Enclosures · cable tray · conduit · grounding', standards: ['IEC 60529', 'DIN 933'], color: '#202B77', products: PRODUCTS.filter(p => p.system === 'electrical') },
-  { key: 'stainless', brand: 'TITAN', name_th: 'อุตสาหกรรมงานสเตนเลส', name_en: 'Stainless Industry', desc_th: 'SUS304 A2-70 · SUS316 A4-80 — ทะเล / อาหาร / เคมี', desc_en: 'SUS304 A2-70 · SUS316 A4-80 — marine, food, chemical', standards: ['DIN 933', 'A2-70', 'A4-80', 'ASTM A193'], color: '#202B77', products: PRODUCTS.filter(p => p.system === 'stainless') },
-  { key: 'agri', brand: 'TITAN', name_th: 'อุตสาหกรรมงานเกษตร', name_en: 'Agriculture Industry', desc_th: 'เครื่องจักรกลเกษตร · Grade 10.9 · Alloy steel', desc_en: 'Agricultural machinery · Grade 10.9 · Alloy steel', standards: ['ISO 8.8/10.9', 'DIN 931'], color: '#202B77', products: PRODUCTS.filter(p => p.system === 'agri') },
-  { key: 'plumbing', brand: 'TITAN', name_th: 'อุตสาหกรรมงานประปา', name_en: 'Plumbing Industry', desc_th: 'ข้อต่อ · วาล์ว · ท่อ · fitting ทุกขนาด', desc_en: 'Fittings · valves · pipes — all sizes', standards: ['WATERWORKS', 'DIN'], color: '#202B77', products: PRODUCTS.filter(p => p.system === 'plumbing') },
+  { key: 'bolts',   th: 'สลักเกลียว',        en: 'Bolts',                  parametric: true },
+  { key: 'screws',  th: 'สกรู',              en: 'Screws',                 parametric: true },
+  { key: 'sds',     th: 'สกรูเจาะตัวเอง',     en: 'Self-drilling Screws',   parametric: true },
+  { key: 'nuts',    th: 'น็อตและแหวน',        en: 'Nuts & Washers',         parametric: true },
+  { key: 'anchors', th: 'พุกและแองเคอร์',     en: 'Anchors',                parametric: true },
+  { key: 'drills',  th: 'ดอกสว่าน',          en: 'Drill Bits',             parametric: false },
+  { key: 'tools',   th: 'เครื่องมือ',         en: 'Power Tool Accessories', parametric: false },
 ];
+
+export const PRODUCTS: Product[] = [
+  {
+    id: 'hex-bolt-933', cat: 'bolts', brand: 'SUG', seed: 11,
+    th: 'สลักเกลียวหัวหกเหลี่ยม (เต็มเกลียว)', en: 'Hex Head Bolt — Fully Threaded',
+    standards: ['DIN 933', 'ISO 4017'], img: null,
+    parametric: true,
+    attrs: {
+      size:   ['M6', 'M8', 'M10', 'M12', 'M16', 'M20'],
+      length: ['20', '25', '30', '40', '50', '60', '80', '100'],
+      grade:  ['8.8', '10.9', '12.9'],
+      finish: ['ชุบซิงค์ขาว / Zinc', 'กัลวาไนซ์ / HDG', 'สเตนเลส A2', 'ดำรมดำ / Plain'],
+    },
+    base: 6,
+    breaks: [[1, 1], [100, 0.92], [500, 0.85], [2000, 0.78]],
+    lead: { stock: 'พร้อมส่ง', days: 0 },
+  },
+  {
+    id: 'hex-bolt-931', cat: 'bolts', brand: 'SUG', seed: 12,
+    th: 'สลักเกลียวหัวหกเหลี่ยม (เกลียวบางส่วน)', en: 'Hex Bolt — Partially Threaded',
+    standards: ['DIN 931', 'ISO 4014'], img: null, parametric: true,
+    attrs: {
+      size:   ['M8', 'M10', 'M12', 'M16', 'M20', 'M24'],
+      length: ['50', '60', '80', '100', '120', '150'],
+      grade:  ['8.8', '10.9'],
+      finish: ['ชุบซิงค์ขาว / Zinc', 'กัลวาไนซ์ / HDG', 'สเตนเลส A2'],
+    },
+    base: 9, breaks: [[1, 1], [100, 0.93], [500, 0.86], [2000, 0.8]],
+    lead: { stock: 'พร้อมส่ง', days: 0 },
+  },
+  {
+    id: 'titan-bolt-129', cat: 'bolts', brand: 'TITAN', seed: 21,
+    th: 'TITAN สลักเกลียวแรงดึงสูง เกรด 12.9', en: 'TITAN High-Tensile Bolt — Grade 12.9',
+    standards: ['ISO 898-1', 'DIN 912'], img: null, parametric: true,
+    attrs: {
+      size:   ['M10', 'M12', 'M16', 'M20'],
+      length: ['40', '50', '60', '80', '100'],
+      grade:  ['12.9'],
+      finish: ['ดำรมดำ / Black Oxide', 'ฟอสเฟต / Phosphate'],
+    },
+    base: 28, breaks: [[1, 1], [50, 0.95], [200, 0.88], [1000, 0.82]],
+    lead: { stock: 'พร้อมส่ง', days: 0 }, premium: true,
+  },
+  {
+    id: 'machine-screw', cat: 'screws', brand: 'SUG', seed: 31,
+    th: 'สกรูหัวกลมแฉก (เมตริก)', en: 'Pan Head Machine Screw — Phillips',
+    standards: ['DIN 7985', 'ISO 7045'], img: null, parametric: true,
+    attrs: {
+      size:   ['M3', 'M4', 'M5', 'M6', 'M8'],
+      length: ['8', '10', '12', '16', '20', '25', '30'],
+      grade:  ['4.8', 'A2 SS'],
+      finish: ['ชุบซิงค์ขาว / Zinc', 'สเตนเลส A2', 'นิกเกิล / Nickel'],
+    },
+    base: 1.2, breaks: [[1, 1], [200, 0.9], [1000, 0.82], [5000, 0.72]],
+    lead: { stock: 'พร้อมส่ง', days: 0 },
+  },
+  {
+    id: 'wood-screw', cat: 'screws', brand: 'SUG', seed: 32,
+    th: 'สกรูเกลียวปล่อยหัวเตเปอร์', en: 'Countersunk Wood Screw',
+    standards: ['DIN 7505'], img: null, parametric: true,
+    attrs: {
+      size:   ['3.5', '4.0', '4.5', '5.0', '6.0'],
+      length: ['16', '25', '30', '40', '50', '60', '70'],
+      grade:  ['เหล็กชุบ / Steel'],
+      finish: ['ชุบซิงค์เหลือง / Yellow Zinc', 'ดำ / Black Phos'],
+    },
+    base: 0.6, breaks: [[1, 1], [500, 0.88], [2000, 0.78], [10000, 0.68]],
+    lead: { stock: 'พร้อมส่ง', days: 0 },
+  },
+  {
+    id: 'sds-screw', cat: 'sds', brand: 'SUG', seed: 41,
+    th: 'สกรูเจาะตัวเอง หัวหกเหลี่ยม', en: 'Hex Washer Self-Drilling Screw',
+    standards: ['DIN 7504 K', 'JIS B1125'], img: '/product-drill-orange.png', parametric: true,
+    attrs: {
+      size:   ['#10', '#12', '#14'],
+      length: ['16', '20', '25', '32', '45', '60', '85'],
+      grade:  ['C1022 ชุบ', 'สเตนเลส 410'],
+      finish: ['ชุบซิงค์ / Zinc', 'ทาสี / Painted', 'พร้อม EPDM'],
+    },
+    base: 1.8, breaks: [[1, 1], [250, 0.9], [1000, 0.8], [5000, 0.7]],
+    lead: { stock: 'พร้อมส่ง', days: 0 },
+  },
+  {
+    id: 'hex-nut', cat: 'nuts', brand: 'SUG', seed: 51,
+    th: 'น็อตหัวหกเหลี่ยม', en: 'Hex Nut',
+    standards: ['DIN 934', 'ISO 4032'], img: null, parametric: true,
+    attrs: {
+      size:   ['M6', 'M8', 'M10', 'M12', 'M16', 'M20', 'M24'],
+      grade:  ['คลาส 8', 'สเตนเลส A2'],
+      finish: ['ชุบซิงค์ขาว / Zinc', 'กัลวาไนซ์ / HDG', 'สเตนเลส A2'],
+    },
+    base: 2, breaks: [[1, 1], [200, 0.9], [1000, 0.8], [5000, 0.72]],
+    lead: { stock: 'พร้อมส่ง', days: 0 },
+  },
+  {
+    id: 'flat-washer', cat: 'nuts', brand: 'SUG', seed: 52,
+    th: 'แหวนอีแปะ (แหวนแบน)', en: 'Flat Washer',
+    standards: ['DIN 125', 'ISO 7089'], img: null, parametric: true,
+    attrs: {
+      size:   ['M6', 'M8', 'M10', 'M12', 'M16', 'M20'],
+      grade:  ['เหล็กชุบ', 'สเตนเลส A2'],
+      finish: ['ชุบซิงค์ขาว / Zinc', 'สเตนเลส A2'],
+    },
+    base: 0.8, breaks: [[1, 1], [500, 0.85], [2000, 0.75], [10000, 0.65]],
+    lead: { stock: 'พร้อมส่ง', days: 0 },
+  },
+  {
+    id: 'wedge-anchor', cat: 'anchors', brand: 'SUG', seed: 61,
+    th: 'แองเคอร์ลิ่ม (สลักถ่างคอนกรีต)', en: 'Wedge Anchor',
+    standards: ['ETA Option 1'], img: null, parametric: true,
+    attrs: {
+      size:   ['M8', 'M10', 'M12', 'M16'],
+      length: ['65', '80', '100', '120', '150'],
+      grade:  ['เหล็กชุบ', 'สเตนเลส A4'],
+      finish: ['ชุบซิงค์ / Zinc', 'สเตนเลส A4'],
+    },
+    base: 12, breaks: [[1, 1], [50, 0.93], [200, 0.85], [1000, 0.78]],
+    lead: { stock: 'พร้อมส่ง', days: 0 },
+  },
+  {
+    id: 'titan-chem-anchor', cat: 'anchors', brand: 'TITAN', seed: 62,
+    th: 'TITAN เคมีแองเคอร์ วินิลเอสเตอร์', en: 'TITAN Vinyl Ester Chemical Anchor',
+    standards: ['ETA Option 1', 'Seismic C2'], img: null, parametric: false,
+    sku: 'TT-CHEM-VE-400', priceList: 380,
+    specTh: 'หลอดเคมี 400 มล. สำหรับงานยึดเหล็กเสริมและสตั๊ดในคอนกรีตแตกร้าว ทนแรงแผ่นดินไหว',
+    specEn: '400 ml cartridge for rebar and stud anchoring in cracked concrete. Seismic-qualified.',
+    breaks: [[1, 1], [12, 0.94], [48, 0.88], [144, 0.82]],
+    lead: { stock: 'พร้อมส่ง', days: 0 }, premium: true,
+  },
+  {
+    id: 'hss-cobalt-drill', cat: 'drills', brand: 'SUG', seed: 71,
+    th: 'ดอกสว่านโคบอลต์ HSS-Co', en: 'HSS-Cobalt Twist Drill',
+    standards: ['DIN 338', 'M35'], img: '/product-drill-orange.png', parametric: false,
+    sku: 'TX-HSS-CO', priceList: 82, hasSizes: ['3.0', '4.0', '5.0', '6.5', '8.0', '10.0'],
+    specTh: 'ผสมโคบอลต์ 5% (M35) ปลายตัด 135° สปลิทพอยต์ สำหรับสเตนเลสและเหล็กโครงสร้าง',
+    specEn: '5% cobalt (M35), 135° split point. For stainless and structural steel.',
+    breaks: [[1, 1], [10, 0.95], [50, 0.88], [200, 0.8]],
+    lead: { stock: 'พร้อมส่ง', days: 0 },
+  },
+  {
+    id: 'sds-concrete-drill', cat: 'drills', brand: 'SUG', seed: 72,
+    th: 'ดอกสว่านโรตารี่ SDS-Plus เจาะคอนกรีต', en: 'SDS-Plus Concrete Drill',
+    standards: ['ISO 5468'], img: '/product-drill-blue.png', parametric: false,
+    sku: 'TX-SDS-PL', priceList: 145, hasSizes: ['6', '8', '10', '12', '16'],
+    specTh: 'ปลายคาร์ไบด์ 4 ร่อง ระบายฝุ่นเร็ว สำหรับเจาะคอนกรีตและหินแกรนิต',
+    specEn: '4-flute carbide tip, fast dust evacuation. For concrete and granite.',
+    breaks: [[1, 1], [10, 0.93], [50, 0.85], [200, 0.77]],
+    lead: { stock: 'พร้อมส่ง', days: 0 },
+  },
+  {
+    id: 'titan-drill-m42', cat: 'tools', brand: 'TITAN', seed: 81,
+    th: 'TITAN ดอกสว่านบิตหกเหลี่ยม M42', en: 'TITAN M42 Impact Drill Bit',
+    standards: ['M42', 'TiAlN'], img: '/product-drill-blue.png', parametric: false,
+    sku: 'TT-DRL-M42', priceList: 220, hasSizes: ['4.0', '5.0', '6.0', '8.0'],
+    specTh: 'เคลือบ TiAlN ก้านหกเหลี่ยม 1/4 นิ้ว สำหรับสว่านกระแทกไร้สาย งานหนักต่อเนื่อง',
+    specEn: 'TiAlN coated, 1/4" hex shank for cordless impact drivers. Heavy continuous use.',
+    breaks: [[1, 1], [10, 0.95], [50, 0.9], [200, 0.84]], lead: { stock: 'พร้อมส่ง', days: 0 },
+    premium: true,
+  },
+  {
+    id: 'bi-metal-holesaw', cat: 'tools', brand: 'SUG', seed: 82,
+    th: 'โฮลซอว์ไบเมทัล M42', en: 'Bi-Metal Hole Saw M42',
+    standards: ['M42 HSS'], img: null, parametric: false,
+    sku: 'TX-HOLE-BM', priceList: 165, hasSizes: ['19', '22', '29', '35', '44', '51', '68'],
+    specTh: 'ฟันไบเมทัล M42 ทนความร้อน สำหรับเจาะเหล็กแผ่น สเตนเลส และไม้',
+    specEn: 'M42 bi-metal teeth. For sheet steel, stainless, and wood.',
+    breaks: [[1, 1], [5, 0.95], [25, 0.88], [100, 0.8]], lead: { stock: 'สั่งผลิต', days: 5 },
+  },
+];
+
+export const SYSTEMS: WorkSystem[] = [
+  { key: 'roofing', th: 'ระบบหลังคา', en: 'Roofing System',
+    tagTh: 'กระเบื้อง · เมทัลชีต · Bi-Metal 304', tagEn: 'Tile · metal sheet · Bi-Metal 304',
+    std: 'AS3566 · SALT-SPRAY 1000H', img: '/product-drill-orange.png',
+    blurbTh: 'สกรูยึดเมทัลชีตและกระเบื้อง พร้อมดอกและโฮลซอว์สำหรับงานหลังคา',
+    blurbEn: 'Self-drilling roofing screws with the drills and hole saws to fit them.',
+    products: ['sds-screw', 'bi-metal-holesaw', 'titan-drill-m42', 'hss-cobalt-drill'] },
+  { key: 'multipurpose', th: 'งานอเนกประสงค์', en: 'Multipurpose',
+    tagTh: 'แปะแนงเหล็ก · WAVE DOME', tagEn: 'Steel batten · WAVE DOME',
+    std: 'T-17 · SD POINT', img: null,
+    blurbTh: 'สกรูและสลักเกลียวอเนกประสงค์สำหรับงานไม้ เหล็ก และงานทั่วไป',
+    blurbEn: 'All-round screws and bolts for timber, steel, and general fixing.',
+    products: ['wood-screw', 'machine-screw', 'hex-bolt-933'] },
+  { key: 'wall', th: 'ผนัง / ไฟเบอร์ซีเมนต์', en: 'Wall / Fibre-cement',
+    tagTh: 'CSH · RIB · FMC · ไม้ฝา', tagEn: 'CSH · RIB · FMC · plank',
+    std: 'DIN 7504', img: null,
+    blurbTh: 'สกรูยึดแผ่นไฟเบอร์ซีเมนต์ ไม้ฝา และผนังเบา',
+    blurbEn: 'Screws for fibre-cement board, fascia plank, and lightweight walls.',
+    products: ['wood-screw', 'sds-screw', 'machine-screw'] },
+  { key: 'concrete', th: 'งานคอนกรีต', en: 'Concrete',
+    tagTh: 'หัวเหลี่ยม · FH · PH', tagEn: 'Hex · FH · PH',
+    std: 'ETA · DIN', img: null,
+    blurbTh: 'พุก แองเคอร์ และเคมีภัณฑ์ยึดในคอนกรีต พร้อมดอกเจาะ',
+    blurbEn: 'Anchors, chemical fixings, and the drills to set them in concrete.',
+    products: ['wedge-anchor', 'titan-chem-anchor', 'sds-concrete-drill', 'hex-bolt-931'] },
+  { key: 'accessories', th: 'อุปกรณ์เสริม', en: 'Accessories',
+    tagTh: 'EPDM · รางน้ำ · แป · เครื่องมือ', tagEn: 'EPDM · gutter · purlin · tools',
+    std: 'MADE-TO-SPEC', img: null,
+    blurbTh: 'แหวน น็อต ดอกสว่าน และเครื่องมือที่ใช้ส่งมอบงานให้เสร็จสมบูรณ์',
+    blurbEn: 'Washers, nuts, drill bits, and tools to finish the job.',
+    products: ['hss-cobalt-drill', 'sds-concrete-drill', 'titan-drill-m42', 'bi-metal-holesaw', 'flat-washer', 'hex-nut'] },
+];
+
+export const CROSS_REF_DB: CrossRefEntry[] = [
+  { competitor_brand: 'Hilti', competitor_sku: 'S-WH 15', competitor_name: 'Hilti Hex washer head screw', sug_product_id: 'sds-screw', match_level: 'exact', notes_th: 'สกรูปลายสว่านหัวหกเหลี่ยมเทียบเท่า', notes_en: 'Hex self-drilling screw equivalent.' },
+  { competitor_brand: 'Hilti', competitor_sku: 'HST3 M10', competitor_name: 'Hilti Anchor bolt HST3', sug_product_id: 'wedge-anchor', match_level: 'equivalent', notes_th: 'ETA certified แองเคอร์ลิ่มเทียบเท่า', notes_en: 'ETA certified equivalent wedge anchor.' },
+  { competitor_brand: 'Fischer', competitor_sku: 'FPF II WT', competitor_name: 'Fischer wood screw', sug_product_id: 'wood-screw', match_level: 'equivalent', notes_th: 'สกรูยึดไม้เตเปอร์เทียบเท่า', notes_en: 'Wood screw equivalent.' },
+  { competitor_brand: 'Fischer', competitor_sku: 'FAZ II 10/10', competitor_name: 'Fischer wedge anchor', sug_product_id: 'wedge-anchor', match_level: 'equivalent', notes_th: 'แองเคอร์คอนกรีตลิ่มเทียบเท่า', notes_en: 'Equivalent structural wedge anchor.' },
+  { competitor_brand: 'Würth', competitor_sku: 'ASSY-EPDM-304', competitor_name: 'Würth self-drilling screw', sug_product_id: 'sds-screw', match_level: 'exact', notes_th: 'ปลายสว่านพร้อม EPDM เทียบเท่า', notes_en: 'Self-drilling screw with EPDM.' },
+  { competitor_brand: 'Würth', competitor_sku: 'HBS 931 8.8', competitor_name: 'Würth Hex bolt partial thread', sug_product_id: 'hex-bolt-931', match_level: 'exact', notes_th: 'DIN 931 เกรด 8.8 เทียบเท่าตรงรุ่น', notes_en: 'DIN 931 grade 8.8 hex bolt.' },
+  { competitor_brand: 'Würth', competitor_sku: 'AMO LT 7.5', competitor_name: 'Würth concrete anchor', sug_product_id: 'wedge-anchor', match_level: 'equivalent', notes_th: 'แองเคอร์สำหรับคอนกรีตเทียบเท่า', notes_en: 'Concrete anchor equivalent.' },
+  { competitor_brand: 'Bossard', competitor_sku: 'BN8890', competitor_name: 'Bossard pan head machine screw', sug_product_id: 'machine-screw', match_level: 'equivalent', notes_th: 'สกรูหัวกลมแฉกเมตริกเทียบเท่า', notes_en: 'Pan head machine screw equivalent.' },
+  { competitor_brand: 'Bossard', competitor_sku: 'BN33', competitor_name: 'Bossard hex bolt DIN 931', sug_product_id: 'hex-bolt-931', match_level: 'exact', notes_th: 'DIN 931 หกเหลี่ยมเกลียวบางส่วนเทียบเท่า', notes_en: 'DIN 931 hex bolt partial thread.' },
+  { competitor_brand: 'Bossard', competitor_sku: 'BN5', competitor_name: 'Bossard fully threaded hex bolt', sug_product_id: 'hex-bolt-933', match_level: 'exact', notes_th: 'DIN 933 หกเหลี่ยมเต็มเกลียวเทียบเท่า', notes_en: 'DIN 933 hex bolt fully threaded.' },
+];
+
+export const DEALER_MULT = 0.82;
+
+// ── Pricing multipliers ──
+const SIZE_MULT: Record<string, number> = {
+  M3: 0.4, M4: 0.5, M5: 0.6, M6: 1, M8: 1.5, M10: 2.2, M12: 3.2, M16: 5.5, M20: 8.5, M24: 13,
+  '#10': 1, '#12': 1.2, '#14': 1.5, '3.0': 0.5, '3.5': 0.6, '4.0': 0.7, '4.5': 0.8, '5.0': 0.9, '6.0': 1.2
+};
+const GRADE_MULT: Record<string, number> = {
+  '4.8': 1, '8.8': 1, '10.9': 1.35, '12.9': 1.8, 'คลาส 8': 1,
+  'A2 SS': 1.9, 'สเตนเลส A2': 1.9, 'สเตนเลส A4': 2.6, 'สเตนเลส 410': 1.7,
+  'เหล็กชุบ / Steel': 1, 'เหล็กชุบ': 1, 'C1022 ชุบ': 1
+};
+
+const finishMult = (f?: string): number => {
+  if (!f) return 1;
+  if (f.includes('A4')) return 1.4;
+  if (f.includes('A2') || f.includes('สเตนเลส')) return 1.25;
+  if (f.includes('HDG') || f.includes('กัลวาไนซ์')) return 1.3;
+  if (f.includes('EPDM')) return 1.2;
+  return 1;
+};
+
+// ── Helpers ──
+
+export function getProductById(id: string): Product | undefined {
+  return PRODUCTS.find(p => p.id === id);
+}
 
 export function getCategoryByKey(key: string): Category | undefined {
   return CATEGORIES.find(c => c.key === key);
 }
-export function getProductById(id: string): Product | undefined {
-  return PRODUCTS.find(p => p.id === id);
+
+export function systemFor(key: string): WorkSystem | null {
+  return SYSTEMS.find(s => s.key === key) || null;
 }
+
+export function bySystem(key: string): Product[] {
+  const s = systemFor(key);
+  if (!s) return [];
+  return s.products.map(id => getProductById(id)).filter((p): p is Product => !!p);
+}
+
+export function computePrice(prod: Product, sel: { size?: string | null; length?: string | null; grade?: string | null; finish?: string | null }): number {
+  if (!prod.parametric) return prod.priceList || 0;
+  let price = prod.base || 0;
+  if (sel.size && SIZE_MULT[sel.size]) price *= SIZE_MULT[sel.size];
+  if (sel.length) price *= (1 + (parseInt(sel.length, 10) || 20) / 120);
+  if (sel.grade && GRADE_MULT[sel.grade]) price *= GRADE_MULT[sel.grade];
+  if (sel.finish) price *= finishMult(sel.finish);
+  return Math.max(0.3, Math.round(price * 10) / 10);
+}
+
+export function buildSku(prod: Product, sel: { size?: string | null; length?: string | null; grade?: string | null; finish?: string | null }): string {
+  if (!prod.parametric) return prod.sku || prod.id.toUpperCase();
+  const parts = [prod.id.toUpperCase().replace(/-/g, '')];
+  if (sel.size) parts.push(String(sel.size).replace('#', 'N'));
+  if (sel.length) parts.push(String(sel.length));
+  if (sel.grade) parts.push(String(sel.grade).replace(/[^0-9A-Za-z]/g, '').slice(0, 4));
+  if (sel.finish) parts.push(sel.finish.includes('A2') ? 'A2' : sel.finish.includes('A4') ? 'A4' : sel.finish.includes('HDG') || sel.finish.includes('กัลวา') ? 'HDG' : 'ZN');
+  return parts.join('-');
+}
+
+// [pcsPerBox, boxesPerCrate]
+const PACK: Record<string, [number, number]> = {
+  'machine-screw': [200, 20], 'wood-screw': [200, 20],
+  'sds-screw': [100, 12], 'flat-washer': [500, 10], 'hex-nut': [200, 10],
+  'hss-cobalt-drill': [10, 10], 'sds-concrete-drill': [10, 10],
+  'titan-drill-m42': [10, 10], 'bi-metal-holesaw': [1, 12],
+  'titan-chem-anchor': [1, 12],
+};
+
+const PACK_BY_CAT: Record<string, [number, number]> = {
+  bolts: [100, 10], screws: [100, 10], sds: [100, 12], nuts: [200, 10], anchors: [25, 8], drills: [10, 10], tools: [5, 10]
+};
+
+export function packFor(prod: Product) {
+  const o = PACK[prod.id] || PACK_BY_CAT[prod.cat] || [100, 10];
+  return { boxPcs: o[0], boxesPerCrate: o[1], cratePcs: o[0] * o[1] };
+}
+
+export const UNIT_DEFS = [
+  { key: 'pc',    th: 'ตัว',   en: 'pcs'    },
+  { key: 'box',   th: 'กล่อง', en: 'boxes'  },
+  { key: 'crate', th: 'ลัง',   en: 'crates' },
+];
+
+export function unitToPcs(prod: Product, unit: string, n: number): number {
+  const pk = packFor(prod);
+  if (unit === 'box') return n * pk.boxPcs;
+  if (unit === 'crate') return n * pk.cratePcs;
+  return n;
+}
+
+const CROSS_SELL: Record<string, string[]> = {
+  'sds-screw':        ['sds-concrete-drill', 'bi-metal-holesaw', 'titan-drill-m42'],
+  'wood-screw':       ['hss-cobalt-drill', 'machine-screw'],
+  'machine-screw':    ['hex-nut', 'flat-washer', 'hss-cobalt-drill'],
+  'hex-bolt-933':     ['hex-nut', 'flat-washer', 'wedge-anchor'],
+  'hex-bolt-931':     ['hex-nut', 'flat-washer'],
+  'titan-bolt-129':   ['hex-nut', 'flat-washer', 'titan-drill-m42'],
+  'hex-nut':          ['flat-washer', 'hex-bolt-933'],
+  'flat-washer':      ['hex-nut', 'hex-bolt-933'],
+  'wedge-anchor':     ['sds-concrete-drill', 'hex-nut', 'titan-chem-anchor'],
+  'titan-chem-anchor':['sds-concrete-drill', 'wedge-anchor'],
+  'hss-cobalt-drill': ['sds-screw', 'bi-metal-holesaw'],
+  'sds-concrete-drill':['wedge-anchor', 'titan-chem-anchor', 'sds-screw'],
+  'titan-drill-m42':  ['sds-screw', 'bi-metal-holesaw'],
+  'bi-metal-holesaw': ['sds-concrete-drill', 'sds-screw'],
+};
+
+export function relatedFor(prod: Product): Product[] {
+  let ids = CROSS_SELL[prod.id] || [];
+  if (ids.length < 3) {
+    const extra = PRODUCTS.filter(x => x.cat === prod.cat && x.id !== prod.id).map(x => x.id);
+    ids = [...new Set([...ids, ...extra])];
+  }
+  return ids.map(id => getProductById(id)).filter((p): p is Product => !!p).slice(0, 4);
+}
+
+export function tierPrice(unit: number, qty: number, breaks: [number, number][]): number {
+  let mult = 1;
+  for (const [minQty, m] of breaks) {
+    if (qty >= minQty) mult = m;
+  }
+  return Math.round(unit * mult * 100) / 100;
+}
+
+export function stockFor(seed: number) {
+  return BRANCHES.map((b, i) => {
+    const n = Math.abs(Math.round(Math.sin(seed * 9.7 + i * 3.3) * 4200));
+    return { ...b, qty: n };
+  });
+}
+
+export function fmt(n: number): string {
+  return '฿' + Number(n).toLocaleString('th-TH', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 });
+}
+
 export function searchProducts(q: string): Product[] {
   if (!q.trim()) return [];
   const lower = q.toLowerCase();
   return PRODUCTS.filter(p =>
-    p.name_th.includes(q) ||
-    p.name_en.toLowerCase().includes(lower) ||
-    p.sku_prefix.toLowerCase().includes(lower) ||
-    p.desc_th.includes(q) ||
-    p.desc_en.toLowerCase().includes(lower) ||
-    p.standards.some(s => s.toLowerCase().includes(lower)) ||
-    p.variants.some(v => v.sku.toLowerCase().includes(lower))
+    p.th.toLowerCase().includes(lower) ||
+    p.en.toLowerCase().includes(lower) ||
+    p.id.toLowerCase().includes(lower) ||
+    (p.sku && p.sku.toLowerCase().includes(lower)) ||
+    p.standards.some(s => s.toLowerCase().includes(lower))
   );
 }
+
 export function crossRefSearch(query: string): CrossRefEntry[] {
   if (!query.trim()) return [];
   const q = query.toLowerCase();

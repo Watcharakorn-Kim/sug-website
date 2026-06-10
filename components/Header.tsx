@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useDealerAuth } from '@/lib/dealerAuth';
 
 const BRAND_MENU = [
   {
@@ -39,8 +40,10 @@ interface HeaderProps {
 }
 
 export default function Header({ lang, setLang, active = 'home' }: HeaderProps) {
+  const { user, logout } = useDealerAuth();
   const [hoveredBrand, setHoveredBrand] = useState<string>('SUG');
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [acctOpen, setAcctOpen] = useState(false);
 
   const t = (th: string, en: string) => lang === 'en' ? en : th;
   const activeBrand = BRAND_MENU.find(b => b.key === hoveredBrand) || BRAND_MENU[0];
@@ -187,9 +190,54 @@ export default function Header({ lang, setLang, active = 'home' }: HeaderProps) 
 
           {/* CTA */}
           <div className="nav-actions">
-            <Link href="/contact" className="btn-contact" lang={lang}>
-              {t('ติดต่อฝ่ายขาย', 'Contact Sales')} <span className="arr">→</span>
-            </Link>
+            {user ? (
+              <div style={{ position: 'relative' }}>
+                <div className="acct-chip" onClick={() => setAcctOpen(o => !o)}>
+                  <span className="acct-avatar">{user.company.slice(0, 2)}</span>
+                  <span>
+                    <span className="acct-name" style={{ display: 'block', maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {user.company}
+                    </span>
+                    <span className="acct-tier">{user.tier.toUpperCase()} · {user.id}</span>
+                  </span>
+                </div>
+                {acctOpen && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '110%',
+                    right: 0,
+                    background: '#fff',
+                    border: '1px solid var(--border-hairline)',
+                    borderRadius: 'var(--radius-2)',
+                    boxShadow: 'var(--shadow-3)',
+                    minWidth: 200,
+                    zIndex: 200,
+                    overflow: 'hidden'
+                  }}>
+                    <Link href="/portal" className="nav-link" style={{ display: 'block', padding: '12px 16px', borderBottom: '1px solid var(--border-hairline)', fontSize: 14 }} lang={lang}>
+                      {t('แดชบอร์ดบัญชี', 'Account Dashboard')}
+                    </Link>
+                    <button
+                      onClick={() => { logout(); setAcctOpen(false); }}
+                      style={{ display: 'block', width: '100%', textAlign: 'left', padding: '12px 16px', fontSize: 14, background: 'none', border: 'none', color: 'var(--fg-2)', cursor: 'pointer' }}
+                      lang={lang}
+                    >
+                      {t('ออกจากระบบ', 'Sign Out')}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <Link href="/portal" className="nav-link" style={{ fontSize: 13, fontWeight: 600, color: 'var(--sug-steel)', marginRight: 10 }} lang={lang}>
+                  {t('เข้าสู่ระบบตัวแทน', 'Dealer Login')}
+                </Link>
+                <Link href="/contact" className="btn-contact" lang={lang}>
+                  {t('ติดต่อฝ่ายขาย', 'Contact Sales')} <span className="arr">→</span>
+                </Link>
+              </>
+            )}
+
             {/* Mobile burger */}
             <button
               className="mobile-menu-btn"

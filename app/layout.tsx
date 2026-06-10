@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { DealerAuthProvider } from '@/lib/dealerAuth';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -36,7 +37,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="icon" href="/sug-logo-official.png" type="image/png" />
         <meta name="theme-color" content="#14154d" />
       </head>
-      <body>{children}</body>
+      <body>
+        <DealerAuthProvider>
+          {children}
+        </DealerAuthProvider>
+      </body>
     </html>
   );
 }

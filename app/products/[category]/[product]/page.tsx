@@ -4,7 +4,7 @@ export { default } from './ProductDetailPage';
 
 export function generateStaticParams() {
   return PRODUCTS.map(p => ({
-    category: p.system,
+    category: p.cat,
     product: p.id,
   }));
 }
@@ -17,7 +17,7 @@ export async function generateMetadata({
   const p = getProductById(params.product);
   if (!p) return { title: 'Product | SUG Fastener' };
   return {
-    title: `${p.name_th} | ${p.sku_prefix} | SUG Fastener`,
-    description: p.desc_th,
+    title: `${p.th} | SUG Fastener`,
+    description: p.specTh || p.th,
   };
 }

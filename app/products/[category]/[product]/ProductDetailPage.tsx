@@ -1,9 +1,23 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import { Footer } from '@/components/Sections';
-import { getProductById, getCategoryByKey, PRODUCTS, type Product, type ProductVariant } from '@/lib/products';
+import { useDealerAuth } from '@/lib/dealerAuth';
+import {
+  getProductById,
+  getCategoryByKey,
+  computePrice,
+  buildSku,
+  packFor,
+  unitToPcs,
+  relatedFor,
+  tierPrice,
+  stockFor,
+  fmt,
+  DEALER_MULT,
+  type Product
+} from '@/lib/products';
 
 type Lang = 'th' | 'en';
 const t = (lang: Lang, th: string, en: string) => lang === 'en' ? en : th;
@@ -12,106 +26,62 @@ interface Props {
   params: { category: string; product: string };
 }
 
-function VariantTable({ variants, lang, selected, onSelect }: {
-  variants: ProductVariant[];
-  lang: Lang;
-  selected: string;
-  onSelect: (sku: string) => void;
-}) {
-  return (
-    <div style={{ border: '1px solid var(--sug-fog)', borderRadius: 'var(--radius-2)', overflow: 'hidden' }}>
-      {/* Header */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 80px 80px 100px',
-        background: 'var(--sug-ink)',
-        color: 'rgba(255,255,255,0.6)',
-        fontFamily: 'var(--font-mono)',
-        fontSize: 10,
-        fontWeight: 600,
-        letterSpacing: '0.1em',
-        textTransform: 'uppercase',
-        padding: '10px 16px',
-        gap: 12,
-      }}>
-        <span>SKU / {t(lang, 'ขนาด', 'SIZE')}</span>
-        <span style={{ textAlign: 'right' }}>{t(lang, 'บรรจุ', 'QTY')}</span>
-        <span style={{ textAlign: 'right' }}>{t(lang, 'สต็อก', 'STOCK')}</span>
-        <span />
-      </div>
-
-      {/* Rows */}
-      {variants.map((v, i) => {
-        const isSelected = selected === v.sku;
-        return (
-          <button
-            key={v.sku}
-            onClick={() => onSelect(v.sku)}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 80px 80px 100px',
-              gap: 12,
-              padding: '14px 16px',
-              background: isSelected ? 'rgba(43,44,145,0.06)' : '#fff',
-              borderBottom: i < variants.length - 1 ? '1px solid var(--sug-fog)' : 'none',
-              borderLeft: `3px solid ${isSelected ? 'var(--sug-blue)' : 'transparent'}`,
-              cursor: 'pointer',
-              textAlign: 'left',
-              width: '100%',
-              font: 'inherit',
-              transition: 'background 120ms, border-left-color 120ms',
-              alignItems: 'center',
-            }}
-          >
-            <div>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600, color: 'var(--fg-1)', letterSpacing: '0.04em' }}>{v.sku}</span>
-              <span style={{ display: 'block', fontSize: 13, color: 'var(--fg-2)', marginTop: 2 }}>{v.size}</span>
-            </div>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-2)', textAlign: 'right' }}>
-              {v.pack_qty.toLocaleString()} {t(lang, 'ชิ้น', 'pcs')}
-            </span>
-            <span style={{ textAlign: 'right' }}>
-              <span style={{
-                display: 'inline-block',
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                background: v.in_stock ? 'var(--sug-success)' : '#E0E0E0',
-                marginRight: 6,
-              }} />
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: v.in_stock ? 'var(--sug-success)' : 'var(--fg-3)' }}>
-                {v.in_stock ? t(lang, 'มีสต็อก', 'In stock') : t(lang, 'หมด', 'Out')}
-              </span>
-            </span>
-            <div style={{ textAlign: 'right' }}>
-              {isSelected && (
-                <span style={{
-                  background: 'var(--sug-blue)',
-                  color: '#fff',
-                  fontSize: 10,
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 600,
-                  letterSpacing: '0.08em',
-                  padding: '3px 8px',
-                  borderRadius: 2,
-                }}>{t(lang, 'เลือกแล้ว', 'SELECTED')}</span>
-              )}
-            </div>
-          </button>
-        );
-      })}
-    </div>
-  );
+function getCheapestPrice(p: Product): number {
+  if (!p.parametric) return p.priceList || 0;
+  const sel = {
+    size: p.attrs?.size ? p.attrs.size[0] : null,
+    length: p.attrs?.length ? p.attrs.length[0] : null,
+    grade: p.attrs?.grade ? p.attrs.grade[0] : null,
+    finish: p.attrs?.finish ? p.attrs.finish[0] : null,
+  };
+  return computePrice(p, sel);
 }
+
+const ATTR_LABELS = {
+  size: { th: 'ขนาดเกลียว', en: 'Thread Size' },
+  length: { th: 'ความยาว (มม.)', en: 'Length (mm)' },
+  grade: { th: 'เกรด / วัสดุ', en: 'Grade / Material' },
+  finish: { th: 'การชุบเคลือบ', en: 'Finish / Coating' },
+};
 
 export default function ProductDetailPage({ params }: Props) {
   const [lang, setLang] = useState<Lang>('th');
-  const [selectedSku, setSelectedSku] = useState<string>('');
-  const [quoteQty, setQuoteQty] = useState('');
-  const [quoteSent, setQuoteSent] = useState(false);
+  const { user } = useDealerAuth();
+  const dealer = !!user;
 
   const product = getProductById(params.product);
   const category = getCategoryByKey(params.category);
+
+  // pdp tabs state
+  const [tab, setTab] = useState<'specs' | 'certs' | 'ship'>('specs');
+
+  // toast notification state
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  // dynamic selector state
+  const initialSel = useMemo(() => {
+    if (!product) return {} as Record<string, string | null>;
+    if (product.parametric && product.attrs) {
+      return {
+        size: product.attrs.size ? product.attrs.size[0] : null,
+        length: product.attrs.length ? product.attrs.length[0] : null,
+        grade: product.attrs.grade ? product.attrs.grade[0] : null,
+        finish: product.attrs.finish ? product.attrs.finish[0] : null,
+      } as Record<string, string | null>;
+    }
+    return { size: product.hasSizes ? product.hasSizes[0] : null } as Record<string, string | null>;
+  }, [product]);
+
+  const [sel, setSel] = useState<Record<string, string | null>>(initialSel);
+
+  // reset selection if product changes
+  useMemo(() => {
+    setSel(initialSel);
+  }, [product, initialSel]);
+
+  // B2B unit and qty state
+  const [buyUnit, setBuyUnit] = useState<string>('pc');
+  const [unitQty, setUnitQty] = useState<number>(product?.parametric ? 100 : 10);
 
   if (!product || !category) {
     return (
@@ -127,336 +97,409 @@ export default function ProductDetailPage({ params }: Props) {
     );
   }
 
-  const selectedVariant = product.variants.find(v => v.sku === selectedSku) ?? product.variants[0];
-  const relatedProducts = PRODUCTS.filter(p => p.system === product.system && p.id !== product.id).slice(0, 3);
+  const pk = packFor(product);
+  const qty = unitToPcs(product, buyUnit, unitQty); // total pieces
 
-  const handleQuoteSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setQuoteSent(true);
+  const stepFor = () => (buyUnit === 'pc' ? (unitQty > 100 ? 50 : 10) : 1);
+
+  const changeUnit = (u: string) => {
+    const pcsNow = qty;
+    const nq = u === 'pc' ? pcsNow
+      : u === 'box' ? Math.max(1, Math.round(pcsNow / pk.boxPcs))
+      : Math.max(1, Math.round(pcsNow / pk.cratePcs));
+    setBuyUnit(u);
+    setUnitQty(nq);
   };
 
+  const listPrice = product.parametric ? computePrice(product, sel) : product.priceList || 0;
+  const unitPrice = dealer ? Math.round(listPrice * DEALER_MULT * 100) / 100 : listPrice;
+  const tieredPriceVal = tierPrice(unitPrice, qty, product.breaks);
+  const sku = buildSku(product, sel);
+
+  // stable stock values depending on dynamic selections
+  const stockSeed = product.seed + (sel.size ? sel.size.length : 0);
+  const stock = stockFor(stockSeed);
+  const totalStock = stock.reduce((s, b) => s + b.qty, 0);
+  const savePct = Math.round((1 - tieredPriceVal / listPrice) * 100);
+
+  const setAttr = (k: string, v: string) => {
+    setSel(s => ({ ...s, [k]: v }));
+  };
+
+  const handleAction = (isQuote: boolean) => {
+    const actionLabel = isQuote ? t(lang, 'ส่งคำขอใบเสนอราคาแล้ว', 'Added to quote request') : t(lang, 'เพิ่มลงตะกร้าตัวแทน B2B แล้ว', 'Added to B2B cart');
+    showToast(actionLabel);
+  };
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 3000);
+  };
+
+  const relatedProducts = relatedFor(product);
+
   return (
-    <>
+    <div className="store-page">
       <Header lang={lang} setLang={setLang} active="products" />
-      <main>
-        {/* Breadcrumb */}
-        <div style={{ background: 'var(--sug-paper)', borderBottom: '1px solid var(--sug-fog)', padding: '12px 0' }}>
-          <div className="section-inner" style={{ paddingTop: 0, paddingBottom: 0 }}>
-            <nav style={{ display: 'flex', gap: 10, alignItems: 'center', fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.08em', color: 'var(--fg-3)', textTransform: 'uppercase', flexWrap: 'wrap' }}>
-              <Link href="/" style={{ color: 'var(--fg-3)', transition: 'color 120ms' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--sug-orange)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--fg-3)')}>
-                {t(lang, 'หน้าแรก', 'Home')}
-              </Link>
-              <span>·</span>
-              <Link href="/catalog" style={{ color: 'var(--fg-3)', transition: 'color 120ms' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--sug-orange)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--fg-3)')}>
-                {t(lang, 'สินค้า', 'Products')}
-              </Link>
-              <span>·</span>
-              <Link href={`/products/${params.category}`} style={{ color: 'var(--fg-3)', transition: 'color 120ms' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--sug-orange)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--fg-3)')}>
-                {t(lang, category.name_th, category.name_en)}
-              </Link>
-              <span>·</span>
-              <span style={{ color: 'var(--fg-1)' }}>{product.sku_prefix}</span>
-            </nav>
+
+      {/* Toast popup */}
+      {toastMsg && (
+        <div className="toast show" style={{ position: 'fixed', bottom: 28, left: '50%', transform: 'translateX(-50%)', zIndex: 9999 }}>
+          <span className="tcheck">✓</span>
+          <span>{toastMsg}</span>
+        </div>
+      )}
+
+      {/* Breadcrumbs */}
+      <nav className="crumb">
+        <Link href="/">{t(lang, 'หน้าแรก', 'Home')}</Link>
+        <span className="sep">/</span>
+        <Link href="/catalog">{t(lang, 'แคตตาล็อก', 'Catalog')}</Link>
+        <span className="sep">/</span>
+        <Link href={`/catalog?sys=${category.key}`}>{t(lang, category.th, category.en)}</Link>
+        <span className="sep">/</span>
+        <span>{sku}</span>
+      </nav>
+
+      {/* Product details wrapper */}
+      <div className="pdp">
+        {/* Left media column */}
+        <div className="pdp-media">
+          <div className={`pdp-figure ${product.img ? '' : 'ph'}`}>
+            <span className={`pdp-brandtag ${product.brand === 'TITAN' ? 'titan' : ''}`}>{product.brand}</span>
+            {product.img ? (
+              <img src={product.img} alt={t(lang, product.th, product.en)} />
+            ) : (
+              <span>{t(lang, 'ภาพสินค้า', 'Product image')}</span>
+            )}
+            <div className="mark">
+              <img src="/sug-logo-official.png" alt="SUG" />
+            </div>
+          </div>
+          <div className="buy-meta" lang={lang} style={{ marginTop: 16 }}>
+            <span>✓ {t(lang, 'ส่งฟรีเมื่อสั่งครบ ฿2,000', 'Free delivery over ฿2,000')}</span>
+            <span>✓ {t(lang, 'ใบกำกับภาษีเต็มรูปแบบ', 'Full tax invoice')}</span>
           </div>
         </div>
 
-        {/* Product main */}
-        <div className="section" style={{ paddingTop: 60 }}>
-          <div className="section-inner">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 440px', gap: 72, alignItems: 'start' }}>
+        {/* Right content column */}
+        <div className="pdp-detail">
+          <div className="pdp-sku">{t(lang, 'รหัสฐาน', 'Base ref')} · {product.id.toUpperCase()}</div>
+          <h1 className="pdp-title" lang={lang}>{t(lang, product.th, product.en)}</h1>
+          <div className="pdp-sub">{t(lang, product.en, product.th)}</div>
+          <div className="pdp-std" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 20 }}>
+            {product.standards.map(s => <span className="std-tag" key={s}>{s}</span>)}
+          </div>
+          {(product.specTh || product.specEn) && (
+            <p className="pdp-desc" lang={lang}>{t(lang, product.specTh || '', product.specEn || '')}</p>
+          )}
 
-              {/* Left: details */}
-              <div>
-                {/* Badges */}
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
-                  <span style={{ background: product.brand === 'SUG' ? 'var(--sug-blue)' : 'var(--titan-blue)', color: '#fff', fontSize: 10, fontFamily: 'var(--font-mono)', fontWeight: 600, letterSpacing: '0.1em', padding: '4px 10px', borderRadius: 2 }}>
-                    {product.brand}
-                  </span>
-                  {product.isBestSeller && <span style={{ background: 'var(--sug-orange)', color: '#fff', fontSize: 10, fontFamily: 'var(--font-mono)', fontWeight: 600, letterSpacing: '0.08em', padding: '4px 10px', borderRadius: 2 }}>{t(lang, 'ขายดี', 'BEST SELLER')}</span>}
-                  {product.isNew && <span style={{ background: 'var(--sug-success)', color: '#fff', fontSize: 10, fontFamily: 'var(--font-mono)', fontWeight: 600, letterSpacing: '0.08em', padding: '4px 10px', borderRadius: 2 }}>NEW</span>}
-                </div>
-
-                <h1 style={{
-                  fontFamily: lang === 'th' ? 'var(--font-thai)' : 'var(--font-body)',
-                  fontSize: lang === 'th' ? 28 : 26,
-                  fontWeight: 700,
-                  margin: '0 0 8px',
-                  lineHeight: 1.25,
-                  color: 'var(--fg-1)',
-                }} lang={lang}>
-                  {t(lang, product.name_th, product.name_en)}
-                </h1>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.1em', color: 'var(--fg-3)', textTransform: 'uppercase', marginBottom: 24 }}>
-                  SKU SERIES: {product.sku_prefix}
-                </div>
-
-                {/* Product image */}
-                {product.image ? (
-                  <div style={{
-                    background: 'linear-gradient(155deg, #2B2C91 0%, #191A6B 100%)',
-                    borderRadius: 'var(--radius-2)',
-                    padding: '48px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minHeight: 300,
-                    marginBottom: 40,
-                    position: 'relative',
-                    overflow: 'hidden',
-                  }}>
-                    <div style={{ position: 'absolute', top: -80, right: -80, width: 300, height: 300, background: 'radial-gradient(circle, rgba(239,90,28,0.3) 0%, transparent 70%)', pointerEvents: 'none' }} />
-                    <img src={product.image} alt={t(lang, product.name_th, product.name_en)} style={{ maxHeight: 220, maxWidth: '80%', objectFit: 'contain', position: 'relative', zIndex: 1 }} />
-                  </div>
-                ) : (
-                  <div style={{ background: 'var(--sug-paper)', border: '1px solid var(--sug-fog)', borderRadius: 'var(--radius-2)', height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 40 }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '0.1em', color: 'var(--fg-3)', textTransform: 'uppercase' }}>{product.sku_prefix}</span>
-                  </div>
-                )}
-
-                {/* Description */}
-                <h2 style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--fg-3)', marginBottom: 12 }}>
-                  {t(lang, 'รายละเอียด', 'DESCRIPTION')}
-                </h2>
-                <p style={{ fontSize: 16, lineHeight: 1.75, color: 'var(--fg-2)', margin: '0 0 40px', maxWidth: 600 }} lang={lang}>
-                  {t(lang, product.desc_th, product.desc_en)}
-                </p>
-
-                {/* Standards */}
-                <h2 style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--fg-3)', marginBottom: 14 }}>
-                  {t(lang, 'มาตรฐาน', 'STANDARDS')}
-                </h2>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 40 }}>
-                  {product.standards.map(std => (
-                    <span key={std} style={{ border: '1px solid var(--sug-fog)', background: 'var(--sug-paper)', padding: '6px 14px', borderRadius: 2, fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', fontWeight: 600, color: 'var(--fg-2)' }}>
-                      {std}
-                    </span>
-                  ))}
-                </div>
-
-                {/* Specs table */}
-                <h2 style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--fg-3)', marginBottom: 14 }}>
-                  {t(lang, 'ข้อมูลทางเทคนิค', 'TECHNICAL SPECS')}
-                </h2>
-                <div style={{ border: '1px solid var(--sug-fog)', borderRadius: 'var(--radius-2)', overflow: 'hidden', marginBottom: 40 }}>
-                  {product.specs.map((spec, i) => (
-                    <div key={spec.key} style={{
-                      display: 'grid',
-                      gridTemplateColumns: '180px 1fr',
-                      gap: 20,
-                      padding: '14px 20px',
-                      background: i % 2 === 0 ? '#fff' : 'var(--sug-paper)',
-                      borderBottom: i < product.specs.length - 1 ? '1px solid var(--sug-fog)' : 'none',
-                    }}>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', color: 'var(--fg-3)', textTransform: 'uppercase' }} lang={lang}>{spec.key}</span>
-                      <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--fg-1)' }}>{spec.value}</span>
+          {/* Parametric selectors */}
+          {product.parametric && product.attrs ? (
+            <div className="config">
+              {Object.entries(product.attrs).map(([k, options]) => {
+                if (!options) return null;
+                const attrLabel = ATTR_LABELS[k as keyof typeof ATTR_LABELS] || { th: k, en: k };
+                return (
+                  <div className="config-row" key={k}>
+                    <div className="config-label">
+                      <span className="k">{t(lang, attrLabel.th, attrLabel.en)}</span>
+                      <span className="v" lang={lang}>{sel[k]}</span>
                     </div>
-                  ))}
-                </div>
-
-                {/* Variant table */}
-                <h2 style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--fg-3)', marginBottom: 14 }}>
-                  {t(lang, 'ขนาดที่จำหน่าย', 'AVAILABLE SIZES')}
-                </h2>
-                <VariantTable
-                  variants={product.variants}
-                  lang={lang}
-                  selected={selectedSku || product.variants[0]?.sku}
-                  onSelect={setSelectedSku}
-                />
-              </div>
-
-              {/* Right: quote panel (sticky) */}
-              <div style={{ position: 'sticky', top: 90 }}>
-                <div style={{
-                  border: '1px solid var(--border-hairline)',
-                  borderRadius: 'var(--radius-2)',
-                  overflow: 'hidden',
-                  boxShadow: 'var(--shadow-3)',
-                }}>
-                  {/* Panel header */}
-                  <div style={{ background: 'var(--sug-ink)', padding: '24px 28px' }}>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>
-                      {t(lang, 'ขอใบเสนอราคา', 'REQUEST QUOTE')}
-                    </div>
-                    <div style={{ fontFamily: lang === 'th' ? 'var(--font-thai)' : 'var(--font-display)', fontSize: lang === 'th' ? 18 : 20, fontWeight: 700, color: '#fff', lineHeight: 1.2, textTransform: lang === 'th' ? 'none' : 'uppercase' }} lang={lang}>
-                      {t(lang, 'รับราคาใน 24 ชั่วโมง', 'Price within 24 hours')}
-                    </div>
-                  </div>
-
-                  {/* Panel body */}
-                  {quoteSent ? (
-                    <div style={{ padding: '40px 28px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 40, marginBottom: 16 }}>✅</div>
-                      <h3 style={{ fontFamily: lang === 'th' ? 'var(--font-thai)' : 'var(--font-body)', fontSize: 18, fontWeight: 700, margin: '0 0 12px', color: 'var(--sug-success)' }} lang={lang}>
-                        {t(lang, 'รับคำขอแล้ว', 'Request received!')}
-                      </h3>
-                      <p style={{ fontSize: 14, color: 'var(--fg-2)', lineHeight: 1.65 }} lang={lang}>
-                        {t(lang, 'ทีมงานจะติดต่อกลับภายใน 24 ชั่วโมง', 'Our team will contact you within 24 hours.')}
-                      </p>
-                    </div>
-                  ) : (
-                    <form onSubmit={handleQuoteSubmit} style={{ padding: '28px' }}>
-                      {/* Selected variant */}
-                      <div style={{ marginBottom: 20 }}>
-                        <label style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--fg-3)', display: 'block', marginBottom: 8 }}>
-                          {t(lang, 'ขนาดที่เลือก', 'SELECTED SIZE')}
-                        </label>
-                        <select
-                          value={selectedSku || product.variants[0]?.sku}
-                          onChange={e => setSelectedSku(e.target.value)}
-                          style={{
-                            width: '100%',
-                            padding: '12px 14px',
-                            border: '1px solid var(--sug-fog)',
-                            borderRadius: 'var(--radius-1)',
-                            fontFamily: 'var(--font-mono)',
-                            fontSize: 13,
-                            background: '#fff',
-                            color: 'var(--fg-1)',
-                            cursor: 'pointer',
-                            outline: 'none',
-                          }}
+                    <div className="opt-row">
+                      {options.map(v => (
+                        <button
+                          key={v}
+                          className={`opt ${k === 'finish' ? 'finish-opt' : ''} ${sel[k] === v ? 'active' : ''}`}
+                          onClick={() => setAttr(k, v)}
+                          lang={lang}
                         >
-                          {product.variants.map(v => (
-                            <option key={v.sku} value={v.sku} disabled={!v.in_stock}>
-                              {v.sku} · {v.size} {!v.in_stock ? `(${t(lang, 'หมด', 'out of stock')})` : ''}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Quantity */}
-                      <div style={{ marginBottom: 20 }}>
-                        <label style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--fg-3)', display: 'block', marginBottom: 8 }}>
-                          {t(lang, 'ปริมาณที่ต้องการ (ชิ้น)', 'QTY NEEDED (pcs)')}
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          placeholder={t(lang, 'เช่น 5000', 'e.g. 5000')}
-                          value={quoteQty}
-                          onChange={e => setQuoteQty(e.target.value)}
-                          style={{
-                            width: '100%',
-                            padding: '12px 14px',
-                            border: '1px solid var(--sug-fog)',
-                            borderRadius: 'var(--radius-1)',
-                            fontFamily: 'var(--font-mono)',
-                            fontSize: 13,
-                            outline: 'none',
-                            color: 'var(--fg-1)',
-                          }}
-                        />
-                      </div>
-
-                      {/* Name */}
-                      <div style={{ marginBottom: 20 }}>
-                        <label style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--fg-3)', display: 'block', marginBottom: 8 }}>
-                          {t(lang, 'ชื่อ / บริษัท', 'NAME / COMPANY')}
-                        </label>
-                        <input
-                          type="text"
-                          placeholder={t(lang, 'ชื่อของท่าน หรือชื่อบริษัท', 'Your name or company')}
-                          style={{
-                            width: '100%',
-                            padding: '12px 14px',
-                            border: '1px solid var(--sug-fog)',
-                            borderRadius: 'var(--radius-1)',
-                            fontFamily: 'var(--font-body)',
-                            fontSize: 13,
-                            outline: 'none',
-                            color: 'var(--fg-1)',
-                          }}
-                        />
-                      </div>
-
-                      {/* Phone */}
-                      <div style={{ marginBottom: 24 }}>
-                        <label style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--fg-3)', display: 'block', marginBottom: 8 }}>
-                          {t(lang, 'เบอร์โทรศัพท์', 'PHONE')}
-                        </label>
-                        <input
-                          type="tel"
-                          placeholder="0xx-xxx-xxxx"
-                          style={{
-                            width: '100%',
-                            padding: '12px 14px',
-                            border: '1px solid var(--sug-fog)',
-                            borderRadius: 'var(--radius-1)',
-                            fontFamily: 'var(--font-mono)',
-                            fontSize: 13,
-                            outline: 'none',
-                            color: 'var(--fg-1)',
-                          }}
-                        />
-                      </div>
-
-                      <button type="submit" className="btn-orange-lg" style={{ width: '100%', justifyContent: 'center', borderRadius: 'var(--radius-1)' }}>
-                        {t(lang, 'ส่งคำขอใบเสนอราคา', 'Send Quote Request')} →
-                      </button>
-                    </form>
-                  )}
-
-                  {/* Quick contact */}
-                  <div style={{ padding: '20px 28px', background: 'var(--sug-paper)', borderTop: '1px solid var(--sug-fog)' }}>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--fg-3)', marginBottom: 12 }}>
-                      {t(lang, 'หรือติดต่อตรง', 'OR CONTACT DIRECTLY')}
+                          {v}
+                        </button>
+                      ))}
                     </div>
-                    <a href="tel:+6624206734" style={{ display: 'flex', gap: 10, alignItems: 'center', fontSize: 15, fontWeight: 600, color: 'var(--fg-1)', textDecoration: 'none', marginBottom: 8, transition: 'color 120ms' }}
-                      onMouseEnter={e => (e.currentTarget.style.color = 'var(--sug-orange)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--fg-1)')}>
-                      📞 02-420-6734-6
-                    </a>
-                    <a href="https://line.me/R/ti/p/@sugbolts" target="_blank" rel="noopener noreferrer"
-                      style={{ display: 'flex', gap: 10, alignItems: 'center', fontSize: 14, fontWeight: 500, color: 'var(--fg-2)', textDecoration: 'none', transition: 'color 120ms' }}
-                      onMouseEnter={e => (e.currentTarget.style.color = 'var(--sug-orange)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--fg-2)')}>
-                      LINE: @sugbolts →
-                    </a>
                   </div>
+                );
+              })}
+            </div>
+          ) : product.hasSizes ? (
+            <div className="config">
+              <div className="config-row">
+                <div className="config-label">
+                  <span className="k">{t(lang, 'ขนาด (มม.)', 'Size (mm)')}</span>
+                  <span className="v">{sel.size}</span>
                 </div>
-
-                {/* Pack note */}
-                <div style={{ marginTop: 16, padding: '14px 18px', background: 'rgba(43,44,145,0.06)', border: '1px solid var(--sug-blue-200)', borderRadius: 'var(--radius-1)' }}>
-                  <p style={{ fontSize: 13, color: 'var(--sug-blue)', lineHeight: 1.55, margin: 0 }} lang={lang}>
-                    {t(lang,
-                      `📦 บรรจุ ${selectedVariant?.pack_qty?.toLocaleString() ?? '—'} ชิ้น/ถุง · ราคาพิเศษสำหรับการสั่งซื้อ 10 ถุงขึ้นไป`,
-                      `📦 Pack of ${selectedVariant?.pack_qty?.toLocaleString() ?? '—'} pcs · Special pricing for 10+ bags`
-                    )}
-                  </p>
+                <div className="opt-row">
+                  {product.hasSizes.map(v => (
+                    <button
+                      key={v}
+                      className={`opt ${sel.size === v ? 'active' : ''}`}
+                      onClick={() => setAttr('size', v)}
+                    >
+                      {v}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
+          ) : null}
 
-            {/* Related products */}
-            {relatedProducts.length > 0 && (
-              <div style={{ marginTop: 96, paddingTop: 64, borderTop: '1px solid var(--sug-fog)' }}>
-                <h2 style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--fg-3)', marginBottom: 32 }}>
-                  {t(lang, 'สินค้าอื่นในหมวดเดียวกัน', 'MORE IN THIS CATEGORY')}
-                </h2>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2, background: 'var(--sug-fog)', border: '1px solid var(--sug-fog)' }}>
-                  {relatedProducts.map(p => (
-                    <Link
-                      key={p.id}
-                      href={`/products/${p.system}/${p.id}`}
-                      style={{ background: '#fff', padding: 28, display: 'flex', flexDirection: 'column', gap: 10, textDecoration: 'none', transition: 'background 180ms', borderBottom: '2px solid transparent' }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--sug-paper)'; e.currentTarget.style.borderBottomColor = 'var(--sug-orange)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderBottomColor = 'transparent'; }}
-                    >
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', color: 'var(--sug-orange)' }}>{p.sku_prefix}</span>
-                      <span style={{ fontFamily: lang === 'th' ? 'var(--font-thai)' : 'var(--font-body)', fontSize: 15, fontWeight: 700, color: 'var(--fg-1)', lineHeight: 1.3 }} lang={lang}>
-                        {t(lang, p.name_th, p.name_en)}
-                      </span>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-3)' }}>
-                        {p.variants.length} {t(lang, 'ขนาด', 'sizes')}
-                      </span>
-                    </Link>
-                  ))}
+          {/* Buy box B2B aware */}
+          {!dealer ? (
+            <div className="buybox buybox-locked">
+              <div className="buybox-sku" lang={lang}>SKU <b>{sku}</b></div>
+              <div className="lock-hero">
+                <span className="lock-hero-ico">🔒</span>
+                <div>
+                  <div className="lock-hero-title" lang={lang}>
+                    {t(lang, 'ราคาแสดงเฉพาะสมาชิก B2B', 'Pricing for B2B account holders')}
+                  </div>
+                  <div className="lock-hero-sub" lang={lang}>
+                    {t(lang, 'เข้าสู่ระบบเพื่อดูราคาส่วนตัว ส่วนลดตามปริมาณ และสั่งซื้อออนไลน์', 'Sign in to see your price, volume discounts, and order online.')}
+                  </div>
                 </div>
               </div>
-            )}
+              <div className="qty-buy">
+                <Link href="/portal" style={{ width: '100%', textDecoration: 'none' }}>
+                  <button className="btn-addcart" style={{ width: '100%' }} lang={lang}>
+                    {t(lang, 'เข้าสู่ระบบเพื่อดูราคาและสั่งซื้อ', 'Login to Buy & See Prices')} <span className="arr">→</span>
+                  </button>
+                </Link>
+              </div>
+              <div className="buy-meta" lang={lang}>
+                <a
+                  href="#"
+                  onClick={(e) => { e.preventDefault(); showToast(t(lang, 'กำลังดาวน์โหลดแบบเทคนิค (CAD/PDF)...', 'Downloading CAD/PDF technical drawings...')); }}
+                  style={{ color: 'var(--sug-orange)', fontWeight: 600 }}
+                >
+                  ↓ {t(lang, 'ดาวน์โหลดแบบเทคนิค', 'Download drawing')}
+                </a>
+                <span>📄 {t(lang, 'ดูรายละเอียดสเปกได้โดยไม่ต้องเข้าสู่ระบบ', 'Specs viewable without login')}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="buybox">
+              <div className="buybox-sku" lang={lang}>SKU <b>{sku}</b></div>
+              <div className="buybox-price">
+                <span className="bb-now dealer">{fmt(tieredPriceVal)}</span>
+                <span className="bb-unit">/{t(lang, 'ชิ้น', 'pc')}</span>
+                {tieredPriceVal < listPrice && <span className="bb-list">{fmt(listPrice)}</span>}
+              </div>
+              <div className="bb-save" lang={lang}>
+                {t(lang, 'ราคาตัวแทนพิเศษ — ประหยัด', 'Dealer special pricing — saved')} {savePct}% {qty >= 100 ? t(lang, '(รวมส่วนลดตามปริมาณ)', '(incl. volume break)') : ''}
+              </div>
+
+              {/* B2B Price breaks table */}
+              <table className="tier-table">
+                <thead>
+                  <tr>
+                    <th>{t(lang, 'จำนวน (ชิ้น)', 'Qty (pcs)')}</th>
+                    <th>{t(lang, 'ราคา/ชิ้น', 'Price/pc')}</th>
+                    <th>{t(lang, 'ส่วนลด', 'Discount')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {product.breaks.map(([minQty, m], i) => {
+                    const next = product.breaks[i + 1];
+                    const active = qty >= minQty && (!next || qty < next[0]);
+                    return (
+                      <tr key={minQty} className={active ? 'active' : ''}>
+                        <td>{minQty.toLocaleString()}{next ? '–' + (next[0] - 1).toLocaleString() : '+'}</td>
+                        <td>{fmt(Math.round(unitPrice * m * 100) / 100)}</td>
+                        <td>{m < 1 ? '−' + Math.round((1 - m) * 100) + '%' : '—'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              {/* B2B Unit selection toggles */}
+              <div className="unit-toggle" role="tablist">
+                <button className={`unit-btn ${buyUnit === 'pc' ? 'active' : ''}`} onClick={() => changeUnit('pc')} lang={lang}>
+                  {t(lang, 'ตัว', 'pcs')}
+                </button>
+                <button className={`unit-btn ${buyUnit === 'box' ? 'active' : ''}`} onClick={() => changeUnit('box')} lang={lang}>
+                  {t(lang, 'กล่อง', 'boxes')}
+                </button>
+                <button className={`unit-btn ${buyUnit === 'crate' ? 'active' : ''}`} onClick={() => changeUnit('crate')} lang={lang}>
+                  {t(lang, 'ลัง', 'crates')}
+                </button>
+              </div>
+
+              <div className="qty-buy">
+                {/* Stepper */}
+                <div className="qty-stepper">
+                  <button onClick={() => setUnitQty(q => Math.max(1, q - stepFor()))}>−</button>
+                  <input
+                    type="number"
+                    value={unitQty}
+                    onChange={e => setUnitQty(Math.max(1, parseInt(e.target.value || '1', 10)))}
+                  />
+                  <button onClick={() => setUnitQty(q => q + stepFor())}>+</button>
+                </div>
+                {/* Actions */}
+                <button className="btn-addcart" onClick={() => handleAction(false)} lang={lang}>
+                  {t(lang, 'สั่งซื้อ B2B', 'Order B2B')} · {fmt(tieredPriceVal * qty)}
+                </button>
+                <button className="btn-addquote" onClick={() => handleAction(true)} lang={lang}>
+                  {t(lang, 'ขอใบเสนอราคา', 'Quote')}
+                </button>
+              </div>
+
+              {/* Conversion display info */}
+              <div className="unit-convert" lang={lang}>
+                {buyUnit === 'pc' ? (
+                  <span>{t(lang, 'บรรจุ', 'Packed')} <b>{pk.boxPcs.toLocaleString()}</b> {t(lang, 'ตัว/กล่อง', 'pcs/box')} · <b>{pk.boxesPerCrate}</b> {t(lang, 'กล่อง/ลัง', 'boxes/crate')}</span>
+                ) : (
+                  <span><b>{unitQty.toLocaleString()}</b> {t(lang, buyUnit === 'box' ? 'กล่อง' : 'ลัง', buyUnit)} = <b className="uc-pcs">{qty.toLocaleString()}</b> {t(lang, 'ตัว', 'pcs')}</span>
+                )}
+              </div>
+
+              <div className="buy-meta" lang={lang}>
+                <span>📦 {t(lang, `บรรจุ ${pk.boxPcs.toLocaleString()} ชิ้น/กล่อง`, `${pk.boxPcs.toLocaleString()} pcs/box`)}</span>
+                <span>🚚 {totalStock > 3000 ? t(lang, 'จัดส่งพรุ่งนี้ทั่วประเทศ', 'Nationwide next-day') : t(lang, 'พร้อมจัดส่ง 2–3 วัน', 'Ships 2–3 days')}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Branch stock availability */}
+          <div className="branch-stock">
+            <h4>{t(lang, 'สต๊อกสินค้าตามคลังสาขา', 'Stock by branch')}</h4>
+            <div className="branch-grid">
+              {stock.map(b => (
+                <div className="branch-item" key={b.code}>
+                  <span className="bname" lang={lang}>{t(lang, b.th, b.en)}</span>
+                  <span className={`bqty ${b.qty < 800 ? 'low' : ''}`}>{b.qty.toLocaleString()} {t(lang, 'ชิ้น', 'pcs')}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </main>
+
+        {/* Tab panels at the bottom */}
+        <div className="pdp-tabs">
+          <div className="tabbar">
+            <button className={tab === 'specs' ? 'active' : ''} onClick={() => setTab('specs')} lang={lang}>
+              {t(lang, 'สเปกทางเทคนิค', 'Specifications')}
+            </button>
+            <button className={tab === 'certs' ? 'active' : ''} onClick={() => setTab('certs')} lang={lang}>
+              {t(lang, 'ใบรับรอง & เอกสาร', 'Certs & Documents')}
+            </button>
+            <button className={tab === 'ship' ? 'active' : ''} onClick={() => setTab('ship')} lang={lang}>
+              {t(lang, 'การจัดส่ง', 'Delivery')}
+            </button>
+          </div>
+
+          {tab === 'specs' && (
+            <div className="tab-panel">
+              <div className="spec-grid">
+                {[
+                  [t(lang, 'มาตรฐาน', 'Standard'), product.standards.join(' · ')],
+                  [t(lang, 'แบรนด์', 'Brand'), product.brand],
+                  [t(lang, 'ขนาดเกลียว', 'Thread size'), sel.size || '—'],
+                  [t(lang, 'ความยาว', 'Length'), sel.length ? sel.length + ' mm' : '—'],
+                  [t(lang, 'เกรด/วัสดุ', 'Grade/Material'), sel.grade || (product.parametric ? '—' : t(lang, 'เหล็กกล้า', 'Tool steel'))],
+                  [t(lang, 'การชุบเคลือบ', 'Finish'), sel.finish || '—'],
+                  [t(lang, 'หน่วยบรรจุ', 'Pack unit'), `${pk.boxPcs} ${t(lang, 'ชิ้น/กล่อง', 'pcs/box')}`],
+                  [t(lang, 'แหล่งผลิต', 'Origin'), t(lang, 'ผลิตในประเทศไทย', 'Made in Thailand')],
+                ].map(([k, v]) => (
+                  <div className="spec-row" key={k}>
+                    <span className="sk" lang={lang}>{k}</span>
+                    <span className="sv">{v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {tab === 'certs' && (
+            <div className="tab-panel">
+              <div className="cert-list">
+                {[
+                  [t(lang, 'ใบรับรองมาตรฐาน (Mill Certificate)', 'Mill Certificate (3.1)'), 'EN 10204 3.1 · PDF'],
+                  [t(lang, 'รายงานผลทดสอบแรงดึง', 'Tensile Test Report'), 'ISO 898-1 · PDF'],
+                  [t(lang, 'เอกสารความปลอดภัย (SDS)', 'Safety Data Sheet'), 'GHS · PDF'],
+                  [t(lang, 'แบบเขียนทางเทคนิค (CAD)', 'Technical Drawing (CAD)'), 'STEP · DXF'],
+                ].map(([n, info]) => (
+                  <div className="cert-item" key={n}>
+                    <span className="cic">↓</span>
+                    <div className="cmeta">
+                      <div className="cname" lang={lang}>{n}</div>
+                      <div className="cinfo">{info}</div>
+                    </div>
+                    <button
+                      onClick={() => showToast(t(lang, `กำลังเตรียมดาวน์โหลด ${n}...`, `Preparing download for ${n}...`))}
+                      className="cdl"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                      lang={lang}
+                    >
+                      {t(lang, 'ดาวน์โหลด', 'Download')}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {tab === 'ship' && (
+            <div className="tab-panel">
+              <p className="pdp-desc" lang={lang} style={{ maxWidth: '70ch' }}>
+                {t(
+                  lang,
+                  'จัดส่งจากคลังสินค้า 5 ภูมิภาคทั่วประเทศ ครอบคลุม 77 จังหวัด สั่งสินค้าก่อนเวลา 14:00 น. สามารถจัดส่งวันถัดไปสำหรับสินค้าที่มีพร้อมส่ง · บริการรับสินค้าเองที่สาขาหลัก · งานโครงการมีบริการจัดส่งหลายปลายทางแยกตามจุดก่อสร้าง',
+                  'Shipped from 5 regional warehouses covering all 77 provinces. Order before 2pm for next-day delivery on in-stock items. Branch pickup available. Project orders can ship to multiple sites in one order.'
+                )}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Cross-sell panel */}
+      {relatedProducts.length > 0 && (
+        <div className="xsell">
+          <div className="xsell-head">
+            <h2 lang={lang}>{t(lang, 'ใช้คู่กับงานนี้', 'Bought together for this job')}</h2>
+            <p lang={lang}>{t(lang, 'สิ่งที่มักสั่งซื้อไปพร้อมกันเพื่อความสมบูรณ์ในการทำงาน — เพิ่มเติมได้ในคลิกเดียว', 'What tradespeople usually pick up alongside — complete the job in one click.')}</p>
+          </div>
+          <div className="xsell-grid">
+            {relatedProducts.map(rp => {
+              const rpCheapestPrice = getCheapestPrice(rp);
+              const rpPrice = dealer ? Math.round(rpCheapestPrice * DEALER_MULT * 10) / 10 : rpCheapestPrice;
+              const rpk = packFor(rp);
+
+              return (
+                <div className="xsell-card" key={rp.id}>
+                  <Link className={`xsell-thumb ${rp.img ? '' : 'ph'}`} href={`/products/${rp.cat}/${rp.id}`}>
+                    <span className={`result-brand ${rp.brand === 'TITAN' ? 'titan' : ''}`}>{rp.brand}</span>
+                    {rp.img ? <img src={rp.img} alt="" /> : <span>{t(lang, 'ภาพสินค้า', 'product')}</span>}
+                  </Link>
+                  <Link className="xsell-name" href={`/products/${rp.cat}/${rp.id}`} lang={lang}>
+                    {t(lang, rp.th, rp.en)}
+                  </Link>
+                  <div className="xsell-std">{rp.standards[0]}</div>
+                  <div className="xsell-foot">
+                    {dealer ? (
+                      <span className="xsell-price">{t(lang, 'เริ่ม', 'fr.')} {fmt(rpPrice)}</span>
+                    ) : (
+                      <span className="xsell-lock">🔒 {t(lang, 'เข้าสู่ระบบดูราคา', 'Login')}</span>
+                    )}
+                    <button
+                      className="xsell-add"
+                      onClick={() => dealer ? showToast(t(lang, `เพิ่ม ${rpk.boxPcs} ตัว (1 กล่อง) ลงตะกร้าแล้ว`, `Added ${rpk.boxPcs} pcs (1 box) to cart`)) : window.location.href = '/portal'}
+                      lang={lang}
+                    >
+                      + {t(lang, '1 กล่อง', '1 box')}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <Footer lang={lang} />
-    </>
+    </div>
   );
 }
