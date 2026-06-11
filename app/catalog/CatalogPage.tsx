@@ -129,7 +129,7 @@ function CatalogContent() {
   const [loading, setLoading] = useState(false);
 
   // Extract all available brands
-  const [allBrands, setAllBrands] = useState<string[]>(['SUG', 'TITAN']);
+  const [allBrands, setAllBrands] = useState<string[]>(['SUG', 'TITAN', 'LIO', 'LOREX']);
   // Extract all available thread sizes from products database
   const [allSizes, setAllSizes] = useState<string[]>([]);
   // Extract dynamically generated standards
@@ -141,7 +141,7 @@ function CatalogContent() {
       .then(res => res.json())
       .then(data => {
         if (data.facets) {
-          setAllBrands(data.facets.brands || ['SUG', 'TITAN']);
+          setAllBrands(data.facets.brands || ['SUG', 'TITAN', 'LIO', 'LOREX']);
           setAllSizes(data.facets.sizes || []);
           setAllStandards(data.facets.standards || []);
         }

@@ -109,7 +109,9 @@ export async function GET(request: Request) {
 
     // Extract unique sorted arrays of categories, brands, standards, and sizes (facets) before pagination
     const categoriesFacet = Array.from(new Set(products.map(p => p.cat))).sort();
-    const brandsFacet = Array.from(new Set(products.map(p => p.brand))).sort();
+    const brandOrder = ['SUG', 'TITAN', 'LIO', 'LOREX'];
+    const brandsFacet = Array.from(new Set(products.map(p => p.brand)))
+      .sort((a, b) => brandOrder.indexOf(a) - brandOrder.indexOf(b));
     const standardsFacet = Array.from(new Set(products.flatMap(p => p.standards))).sort();
     const sizesFacet = Array.from(new Set(products.flatMap(p => p.attrs?.size || p.hasSizes || []))).sort();
 

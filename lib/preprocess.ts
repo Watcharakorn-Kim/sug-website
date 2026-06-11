@@ -187,10 +187,13 @@ export function loadAndPreprocessData(): PreprocessedProduct[] {
         const list = JSON.parse(content);
         if (Array.isArray(list)) {
           list.forEach(item => {
-            rawSkus.push({
-              ...item,
-              brand: item.brand || file.defaultBrand
-            });
+            const brand = item.brand || file.defaultBrand;
+            if (['SUG', 'TITAN', 'LIO', 'LOREX'].includes(brand)) {
+              rawSkus.push({
+                ...item,
+                brand: brand
+              });
+            }
           });
         }
       } catch (err) {

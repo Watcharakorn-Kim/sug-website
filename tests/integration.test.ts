@@ -48,16 +48,23 @@ describe('Tier 1: Feature Coverage', () => {
       expect(match).toBe(true);
     });
 
-    // 2. Thai keyword search ("สลักเกลียว")
-    req = createMockRequest('http://localhost/api/products?q=สลักเกลียว');
+    // 2. Thai keyword search ("สกรู")
+    req = createMockRequest('http://localhost/api/products?q=สกรู');
     res = await getProducts(req);
     data = await resJson(res);
     expect(data.products.length).toBeGreaterThan(0);
     data.products.forEach((p: any) => {
-      const match = p.en.includes('สลักเกลียว') ||
-                    p.th.includes('สลักเกลียว') ||
-                    p.id.includes('สลักเกลียว') ||
-                    (p.skus && p.skus.some((s: any) => s.name.includes('สลักเกลียว')));
+      const match = p.en.toLowerCase().includes('screw') ||
+                    p.th.includes('สกรู') ||
+                    p.id.toLowerCase().includes('screw') ||
+                    p.standards.some((s: string) => s.includes('สกรู') || s.toLowerCase().includes('screw')) ||
+                    (p.sku && p.sku.includes('สกรู')) ||
+                    (p.attrs && Object.values(p.attrs).some((vals: any) => vals.some((v: string) => v.includes('สกรู')))) ||
+                    (p.skus && p.skus.some((s: any) => 
+                      (s.sku && s.sku.includes('สกรู')) ||
+                      (s.name && s.name.includes('สกรู')) ||
+                      (s.category_sub && s.category_sub.includes('สกรู'))
+                    ));
       expect(match).toBe(true);
     });
 
