@@ -7,7 +7,6 @@ import Header from '@/components/Header';
 import { Footer } from '@/components/Sections';
 import { useDealerAuth } from '@/lib/dealerAuth';
 import {
-  PRODUCTS,
   CATEGORIES,
   SYSTEMS,
   DEALER_MULT,

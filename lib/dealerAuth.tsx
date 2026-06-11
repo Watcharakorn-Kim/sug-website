@@ -1,6 +1,5 @@
 'use client';
 import { useState, useEffect, createContext, useContext, type ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
 
 // ── Auth Context ──────────────────────────────────────────────────────────
 interface DealerUser {
