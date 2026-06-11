@@ -124,6 +124,18 @@ function CatalogContent() {
   const [inStockOnly, setInStockOnly] = useState(false);
   const [sort, setSort] = useState('rel');
 
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalProducts, setTotalProducts] = useState(0);
+
+  const filterKey = JSON.stringify({ cats, brands, sys, q, stds, sizes, inStockOnly, sort });
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+
+  if (filterKey !== prevFilterKey) {
+    setPrevFilterKey(filterKey);
+    setPage(1);
+  }
+
   // Products dynamically loaded from preprocessed database
   const [products, setProducts] = useState<(Product & { systems?: string[] })[]>([]);
   const [loading, setLoading] = useState(false);
@@ -151,9 +163,8 @@ function CatalogContent() {
       });
   }, []);
 
-  // Fetch filtered products dynamically from the API whenever filter parameters change
+  // Fetch filtered products dynamically from the API whenever filter parameters change or page changes
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     const queryParts: string[] = [];
     if (cats.length > 0) queryParts.push(`cat=${encodeURIComponent(cats.join(','))}`);
@@ -164,7 +175,8 @@ function CatalogContent() {
     if (sizes.length > 0) queryParts.push(`size=${encodeURIComponent(sizes.join(','))}`);
     if (inStockOnly) queryParts.push('inStockOnly=true');
     if (sort) queryParts.push(`sort=${encodeURIComponent(sort)}`);
-    queryParts.push('limit=100');
+    queryParts.push(`page=${page}`);
+    queryParts.push('limit=24');
 
     const queryString = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
 
@@ -173,6 +185,8 @@ function CatalogContent() {
       .then(data => {
         if (data.products) {
           setProducts(data.products);
+          setTotalPages(data.pages || 1);
+          setTotalProducts(data.total || 0);
         }
       })
       .catch(err => {
@@ -181,7 +195,7 @@ function CatalogContent() {
       .finally(() => {
         setLoading(false);
       });
-  }, [cats, brands, sys, q, stds, sizes, inStockOnly, sort]);
+  }, [cats, brands, sys, q, stds, sizes, inStockOnly, sort, page]);
 
   // Competitor Cross Reference search state
   const [crossRefQuery, setCrossRefQuery] = useState('');
@@ -206,6 +220,28 @@ function CatalogContent() {
   }
 
   const filtered = products;
+
+  // Generate pages list to show with ellipsis
+  const pageRange = useMemo(() => {
+    const range: (number | string)[] = [];
+    const delta = 1; // Show current page +/- 1
+
+    for (let i = 1; i <= totalPages; i++) {
+      if (
+        i === 1 ||
+        i === totalPages ||
+        (i >= page - delta && i <= page + delta)
+      ) {
+        range.push(i);
+      } else if (
+        (i === page - delta - 1 && i > 1) ||
+        (i === page + delta + 1 && i < totalPages)
+      ) {
+        range.push('...');
+      }
+    }
+    return range.filter((val, index, self) => self.indexOf(val) === index);
+  }, [page, totalPages]);
 
   const toggle = (arr: string[], setArr: (a: string[]) => void, v: string) => {
     setArr(arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v]);
@@ -472,7 +508,7 @@ function CatalogContent() {
           {/* Results bar: count + sorting */}
           <div className="results-bar">
             <span className="results-count" lang={lang}>
-              <b>{filtered.length}</b> {t(lang, 'รายการสินค้า', 'product lines')}
+              <b>{totalProducts.toLocaleString()}</b> {t(lang, 'รายการสินค้า', 'product lines')}
               {dealer ? (
                 <span style={{ color: 'var(--sug-orange)', marginLeft: 8, fontWeight: 600 }}>
                   · {t(lang, `ราคาตัวแทนระดับ ${user.tier.toUpperCase()}`, `${user.tier.toUpperCase()} dealer pricing`)}
@@ -514,11 +550,61 @@ function CatalogContent() {
               <p lang={lang}>{t(lang, 'ลองล้างหรือเปลี่ยนการตั้งค่าตัวกรอง', 'Try clearing or changing some filters.')}</p>
             </div>
           ) : (
-            <div className="result-list">
-              {filtered.map(p => (
-                <ResultRow key={p.id} p={p} lang={lang} dealer={dealer} />
-              ))}
-            </div>
+            <>
+              <div className="result-list">
+                {filtered.map(p => (
+                  <ResultRow key={p.id} p={p} lang={lang} dealer={dealer} />
+                ))}
+              </div>
+
+              {/* Pagination controls */}
+              {totalPages > 1 && (
+                <div>
+                  <div className="pagination">
+                    <button
+                      className="pagination-btn"
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                      lang={lang}
+                    >
+                      ← {t(lang, 'ก่อนหน้า', 'Prev')}
+                    </button>
+
+                    {pageRange.map((item, index) => {
+                      if (item === '...') {
+                        return (
+                          <span key={`ellipsis-${index}`} className="pagination-ellipsis">
+                            ...
+                          </span>
+                        );
+                      }
+                      return (
+                        <button
+                          key={`page-${item}`}
+                          className={`pagination-num ${page === item ? 'active' : ''}`}
+                          onClick={() => setPage(Number(item))}
+                        >
+                          {item}
+                        </button>
+                      );
+                    })}
+
+                    <button
+                      className="pagination-btn"
+                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                      disabled={page === totalPages}
+                      lang={lang}
+                    >
+                      {t(lang, 'ถัดไป', 'Next')} →
+                    </button>
+                  </div>
+
+                  <div className="pagination-info" lang={lang}>
+                    {t(lang, 'แสดงผลหน้า', 'Showing page')} {page} / {totalPages} ({totalProducts.toLocaleString()} {t(lang, 'รายการทั้งหมด', 'items total')})
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </main>
       </div>
