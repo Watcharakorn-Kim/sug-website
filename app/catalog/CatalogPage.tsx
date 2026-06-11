@@ -128,17 +128,22 @@ function CatalogContent() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
 
+  // Products dynamically loaded from preprocessed database
+  const [products, setProducts] = useState<(Product & { systems?: string[] })[]>([]);
+  const [loading, setLoading] = useState(false);
+
   const filterKey = JSON.stringify({ cats, brands, sys, q, stds, sizes, inStockOnly, sort });
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+  const [prevPage, setPrevPage] = useState(page);
 
   if (filterKey !== prevFilterKey) {
     setPrevFilterKey(filterKey);
     setPage(1);
+    setLoading(true);
+  } else if (page !== prevPage) {
+    setPrevPage(page);
+    setLoading(true);
   }
-
-  // Products dynamically loaded from preprocessed database
-  const [products, setProducts] = useState<(Product & { systems?: string[] })[]>([]);
-  const [loading, setLoading] = useState(false);
 
   // Extract all available brands
   const [allBrands, setAllBrands] = useState<string[]>(['SUG', 'TITAN', 'LIO', 'LOREX']);
@@ -165,7 +170,6 @@ function CatalogContent() {
 
   // Fetch filtered products dynamically from the API whenever filter parameters change or page changes
   useEffect(() => {
-    setLoading(true);
     const queryParts: string[] = [];
     if (cats.length > 0) queryParts.push(`cat=${encodeURIComponent(cats.join(','))}`);
     if (brands.length > 0) queryParts.push(`brand=${encodeURIComponent(brands.join(','))}`);

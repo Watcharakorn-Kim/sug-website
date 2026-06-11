@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, use } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import { Footer } from '@/components/Sections';
@@ -23,7 +23,7 @@ type Lang = 'th' | 'en';
 const t = (lang: Lang, th: string, en: string) => lang === 'en' ? en : th;
 
 interface Props {
-  params: { category: string; product: string };
+  params: Promise<{ category: string; product: string }>;
 }
 
 function getCheapestPrice(p: Product): number {
@@ -45,11 +45,18 @@ const ATTR_LABELS = {
 };
 
 export default function ProductDetailPage({ params }: Props) {
+  const resolvedParams = use(params);
+  const categoryKey = resolvedParams.category;
+  const productKey = resolvedParams.product;
+
   const [lang, setLang] = useState<Lang>('th');
   const { user } = useDealerAuth();
   const dealer = !!user;
 
-  const staticProduct = getProductById(params.product);
+  const staticProduct = getProductById(productKey);
+  const isDynamicOnly = !staticProduct;
+  const [isLoading, setIsLoading] = useState(isDynamicOnly);
+  const [error, setError] = useState<string | null>(null);
 
   interface ApiMatchedSku {
     sku: string;
@@ -85,7 +92,7 @@ export default function ProductDetailPage({ params }: Props) {
   const product = apiData?.product || staticProduct;
   const matchedSku = apiData?.matchedSku;
 
-  const category = getCategoryByKey(product?.cat || params.category);
+  const category = getCategoryByKey(product?.cat || categoryKey);
 
   // pdp tabs state
   const [tab, setTab] = useState<'specs' | 'certs' | 'ship'>('specs');
@@ -110,10 +117,24 @@ export default function ProductDetailPage({ params }: Props) {
   const [sel, setSel] = useState<Record<string, string | null>>(initialSel);
 
   // reset selection if product changes (render-phase state adjustment pattern)
-  const [prevProduct, setPrevProduct] = useState(params.product);
-  if (params.product !== prevProduct) {
-    setPrevProduct(params.product);
+  const [prevProduct, setPrevProduct] = useState(productKey);
+  const [prevSel, setPrevSel] = useState(sel);
+  const [prevTier, setPrevTier] = useState(user?.tier);
+
+  if (productKey !== prevProduct) {
+    setPrevProduct(productKey);
     setSel(initialSel);
+    setApiData(null);
+    setIsLoading(isDynamicOnly);
+    setError(null);
+  } else if (sel !== prevSel) {
+    setPrevSel(sel);
+    setIsLoading(isDynamicOnly);
+    setError(null);
+  } else if (user?.tier !== prevTier) {
+    setPrevTier(user?.tier);
+    setIsLoading(isDynamicOnly);
+    setError(null);
   }
 
   // Fetch dynamic details on option select or dealer login changes
@@ -126,21 +147,83 @@ export default function ProductDetailPage({ params }: Props) {
     if (tier) queryParts.push(`tier=${encodeURIComponent(tier)}`);
     const queryString = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
 
-    fetch(`/api/products/${params.product}${queryString}`)
-      .then(res => res.json())
+    fetch(`/api/products/${productKey}${queryString}`)
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('Failed to fetch product details');
+        }
+        return res.json();
+      })
       .then(data => {
         if (!data.error) {
           setApiData(data);
+          setSel(currentSel => {
+            if (Object.keys(currentSel).length === 0) {
+              const p = data.product;
+              const m = data.matchedSku;
+              if (p) {
+                if (p.parametric && p.attrs) {
+                  return {
+                    size: m?.size || p.attrs.size?.[0] || null,
+                    length: m?.length || p.attrs.length?.[0] || null,
+                    finish: m?.finish || p.attrs.finish?.[0] || null,
+                    grade: p.attrs.grade?.[0] || null,
+                  } as Record<string, string | null>;
+                } else if (p.hasSizes) {
+                  return {
+                    size: m?.size || p.hasSizes[0] || null,
+                  } as Record<string, string | null>;
+                }
+              }
+            }
+            return currentSel;
+          });
+        } else {
+          throw new Error(data.error);
         }
       })
       .catch(err => {
         console.error('Failed to load dynamic details:', err);
+        setError(err.message || 'Product not found');
+      })
+      .finally(() => {
+        setIsLoading(false);
       });
-  }, [params.product, sel.size, sel.length, sel.finish, user?.tier]);
+  }, [productKey, sel.size, sel.length, sel.finish, user?.tier, isDynamicOnly]);
 
   // B2B unit and qty state
   const [buyUnit, setBuyUnit] = useState<string>('pc');
   const [unitQty, setUnitQty] = useState<number>(product?.parametric ? 100 : 10);
+
+  const isLoadingScreen = isLoading && !product;
+
+  if (isLoadingScreen) {
+    return (
+      <>
+        <Header lang={lang} setLang={setLang} active="products" />
+        <main style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 40 }}>
+          <div className="spinner" style={{
+            width: 40,
+            height: 40,
+            border: '3px solid var(--sug-fog)',
+            borderTop: '3px solid var(--sug-orange)',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }} />
+          <style>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-3)', letterSpacing: '0.08em' }}>
+            {t(lang, 'กำลังโหลดข้อมูลสินค้า...', 'LOADING PRODUCT DETAILS...')}
+          </p>
+        </main>
+        <Footer lang={lang} />
+      </>
+    );
+  }
 
   if (!product || !category) {
     return (
@@ -148,7 +231,7 @@ export default function ProductDetailPage({ params }: Props) {
         <Header lang={lang} setLang={setLang} active="products" />
         <main style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24, padding: 40 }}>
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 48, textTransform: 'uppercase' }}>404</h1>
-          <p style={{ color: 'var(--fg-3)' }}>Product not found</p>
+          <p style={{ color: 'var(--fg-3)' }}>{error || 'Product not found'}</p>
           <Link href="/catalog" style={{ color: 'var(--sug-orange)', fontWeight: 600 }}>← Back to Catalog</Link>
         </main>
         <Footer lang={lang} />

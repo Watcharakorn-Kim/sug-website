@@ -33,3 +33,35 @@ Verify that categories in the sidebar and home page link correctly to the catalo
 
 ### Code Integrity & Build
 - [ ] The Next.js production build (`npm run build`) compiles cleanly without any TypeScript or linting errors.
+
+## Follow-up — 2026-06-12T00:07:19+07:00
+
+We need to fix the 404 "Product not found" errors that occur when visiting product detail pages (e.g. `/products/tools/sug-12`) and category pages for the preprocessed database (which contains 3,359 products). Currently, only the 14 hardcoded static products work because the client components return a 404 early-render before the dynamic data fetch completes, and because Next.js 15 async params are accessed synchronously.
+
+Working directory: `/Users/kim/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Work/SUG/20 - AI/03 - AI Agent Team/02 - Kim's AI Commercial Office/04 - Sales /17 - SUG New Website Design/sug-website`
+Integrity mode: development
+
+## Requirements
+
+### R1. Unwrap Async Router Params (Next.js 15)
+In `app/products/[category]/page.tsx`, `app/products/[category]/[product]/page.tsx`, and their corresponding client components (`CategoryPage.tsx` and `ProductDetailPage.tsx`), resolve/unwrap the async `params` Promise correctly using React's `use(params)` hook.
+
+### R2. Loading States & Safe Render Guards
+- Implement clean, premium loading states (skeletons or spinners) in both `ProductDetailPage.tsx` and `CategoryPage.tsx` when the product or category data is still being fetched asynchronously.
+- Do NOT early-return a 404 page during the initial render before the async fetch completes.
+- Only show the 404 "Product not found" screen if the API returns a 404 status code or if the fetch completes and the item is confirmed to be missing.
+
+### R3. Build and Test Compliance
+Verify the application builds cleanly with `npm run build` and all 15 integration tests pass with `npm test`.
+
+## Acceptance Criteria
+
+### Functionality
+- [ ] Visiting `/products/tools/sug-12` (or any other preprocessed product ID) loads the product details successfully instead of a 404 page.
+- [ ] Visiting category pages (e.g., `/products/screws`, `/products/sds`) lists all respective preprocessed products correctly.
+- [ ] Non-existent IDs still return a proper 404 page after the fetch completes.
+
+### Build and Tests
+- [ ] The Next.js production build (`npm run build`) compiles cleanly without any compilation or TypeScript errors.
+- [ ] All 15 integration tests (`npm test`) pass cleanly.
+

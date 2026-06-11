@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import { Footer } from '@/components/Sections';
@@ -9,7 +9,7 @@ type Lang = 'th' | 'en';
 const t = (lang: Lang, th: string, en: string) => lang === 'en' ? en : th;
 
 interface Props {
-  params: { category: string };
+  params: Promise<{ category: string }>;
 }
 
 // Compact product card for listing
@@ -113,13 +113,23 @@ function ProductCard({ product, lang }: { product: Product; lang: Lang }) {
 }
 
 export default function CategoryPage({ params }: Props) {
+  const resolvedParams = use(params);
+  const categoryKey = resolvedParams.category;
+
   const [lang, setLang] = useState<Lang>('th');
   
   // Load products dynamically from API
   const [products, setProducts] = useState<Product[]>(PRODUCTS);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const [prevCategoryKey, setPrevCategoryKey] = useState(categoryKey);
+  if (categoryKey !== prevCategoryKey) {
+    setPrevCategoryKey(categoryKey);
+    setIsLoading(true);
+  }
 
   useEffect(() => {
-    fetch(`/api/products?cat=${encodeURIComponent(params.category)}&limit=100`)
+    fetch(`/api/products?cat=${encodeURIComponent(categoryKey)}&limit=100`)
       .then(res => res.json())
       .then(data => {
         if (data.products) {
@@ -128,10 +138,13 @@ export default function CategoryPage({ params }: Props) {
       })
       .catch(err => {
         console.error('Failed to load products:', err);
+      })
+      .finally(() => {
+        setIsLoading(false);
       });
-  }, [params.category]);
+  }, [categoryKey]);
 
-  const categoryBase = getCategoryByKey(params.category);
+  const categoryBase = getCategoryByKey(categoryKey);
 
   if (!categoryBase) {
     return (
@@ -292,7 +305,27 @@ export default function CategoryPage({ params }: Props) {
               </Link>
             </div>
 
-            {category.products.length > 0 ? (
+            {isLoading ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 40px', gap: 16 }}>
+                <div className="spinner" style={{
+                  width: 40,
+                  height: 40,
+                  border: '3px solid var(--sug-fog)',
+                  borderTop: '3px solid var(--sug-orange)',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }} />
+                <style>{`
+                  @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                  }
+                `}</style>
+                <p style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-3)', letterSpacing: '0.08em' }}>
+                  {t(lang, 'กำลังโหลดสินค้า...', 'LOADING PRODUCTS...')}
+                </p>
+              </div>
+            ) : category.products.length > 0 ? (
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',

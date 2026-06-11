@@ -295,6 +295,13 @@ describe('Tier 2: Boundary & Corner Cases', () => {
     let data = await resJson(res);
     expect(data.error).toBe('Product not found');
 
+    // Check specifically for sug-nonexistent as requested
+    let reqSug = createMockRequest('http://localhost/api/products/sug-nonexistent');
+    let resSug = await getProductDetail(reqSug, { params: Promise.resolve({ id: 'sug-nonexistent' }) });
+    expect(resSug.status).toBe(404);
+    let dataSug = await resJson(resSug);
+    expect(dataSug.error).toBe('Product not found');
+
     // TC-2.5.3: Path traversal ID
     req = createMockRequest('http://localhost/api/products/..%2F..%2Fetc%2Fpasswd');
     res = await getProductDetail(req, { params: Promise.resolve({ id: '../../etc/passwd' }) });
@@ -505,7 +512,30 @@ describe('Tier 4: Real-World Application Scenarios', () => {
     const isExceeded = orderTotalExceed > availableCredit;
     expect(isExceeded).toBe(true); // Exceeds credit limit
   });
+
+  // Scenario E: Dynamic Product Fetching and Promise parameters validation
+  it('Scenario E: Dynamic Product details endpoint handles Promise params and queries successfully', async () => {
+    // 1. Get first product from products list endpoint
+    const listReq = createMockRequest('http://localhost/api/products?limit=1');
+    const listRes = await getProducts(listReq);
+    expect(listRes.status).toBe(200);
+    const listData = await resJson(listRes);
+    expect(listData.products).toBeDefined();
+    expect(listData.products.length).toBeGreaterThan(0);
+    const productId = listData.products[0].id;
+
+    // 2. Fetch details of this product with Promise params
+    let req = createMockRequest(`http://localhost/api/products/${productId}`);
+    let res = await getProductDetail(req, { params: Promise.resolve({ id: productId }) });
+    expect(res.status).toBe(200);
+    let data = await resJson(res);
+    expect(data.product).toBeDefined();
+    expect(data.product.id).toBe(productId);
+    expect(data.specs).toBeDefined();
+  });
 });
 
 runAllTests();
+
+
 
