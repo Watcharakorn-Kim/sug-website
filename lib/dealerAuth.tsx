@@ -51,6 +51,7 @@ export function DealerAuthProvider({ children }: { children: ReactNode }) {
     // Check localStorage
     try {
       const saved = localStorage.getItem('sug_dealer_user');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (saved) setUser(JSON.parse(saved));
     } catch {}
     setIsLoading(false);

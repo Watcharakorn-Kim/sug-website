@@ -12,7 +12,6 @@ import {
   SYSTEMS,
   DEALER_MULT,
   crossRefSearch,
-  getProductById,
   computePrice,
   stockFor,
   fmt,
@@ -34,7 +33,6 @@ function getCheapestPrice(p: Product): number {
   return computePrice(p, sel);
 }
 
-const ALL_STANDARDS = Array.from(new Set(PRODUCTS.flatMap(p => p.standards))).sort();
 
 function ResultRow({ p, lang, dealer }: { p: Product; lang: Lang; dealer: boolean }) {
   const list = getCheapestPrice(p);
@@ -127,71 +125,88 @@ function CatalogContent() {
   const [inStockOnly, setInStockOnly] = useState(false);
   const [sort, setSort] = useState('rel');
 
+  // Products dynamically loaded from preprocessed database
+  const [products, setProducts] = useState<(Product & { systems?: string[] })[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Extract all available brands
+  const [allBrands, setAllBrands] = useState<string[]>(['SUG', 'TITAN']);
+  // Extract all available thread sizes from products database
+  const [allSizes, setAllSizes] = useState<string[]>([]);
+  // Extract dynamically generated standards
+  const [allStandards, setAllStandards] = useState<string[]>([]);
+
+  // Load global facets once on mount
+  useEffect(() => {
+    fetch('/api/products?limit=1000')
+      .then(res => res.json())
+      .then(data => {
+        if (data.facets) {
+          setAllBrands(data.facets.brands || ['SUG', 'TITAN']);
+          setAllSizes(data.facets.sizes || []);
+          setAllStandards(data.facets.standards || []);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to load global facets:', err);
+      });
+  }, []);
+
+  // Fetch filtered products dynamically from the API whenever filter parameters change
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoading(true);
+    const queryParts: string[] = [];
+    if (cats.length > 0) queryParts.push(`cat=${encodeURIComponent(cats.join(','))}`);
+    if (brands.length > 0) queryParts.push(`brand=${encodeURIComponent(brands.join(','))}`);
+    if (sys) queryParts.push(`sys=${encodeURIComponent(sys)}`);
+    if (q) queryParts.push(`q=${encodeURIComponent(q)}`);
+    if (stds.length > 0) queryParts.push(`std=${encodeURIComponent(stds.join(','))}`);
+    if (sizes.length > 0) queryParts.push(`size=${encodeURIComponent(sizes.join(','))}`);
+    if (inStockOnly) queryParts.push('inStockOnly=true');
+    if (sort) queryParts.push(`sort=${encodeURIComponent(sort)}`);
+    queryParts.push('limit=100');
+
+    const queryString = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
+
+    fetch(`/api/products${queryString}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.products) {
+          setProducts(data.products);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to load products from API:', err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [cats, brands, sys, q, stds, sizes, inStockOnly, sort]);
+
   // Competitor Cross Reference search state
   const [crossRefQuery, setCrossRefQuery] = useState('');
   const [crossRefResults, setCrossRefResults] = useState<CrossRefEntry[]>([]);
   const [crossRefSearched, setCrossRefSearched] = useState(false);
 
-  // Sync with search parameters on load
-  useEffect(() => {
-    if (!searchParams) return;
-    const catParam = searchParams.get('cat');
-    if (catParam) setCats([catParam]);
-
-    const sysParam = searchParams.get('sys');
-    if (sysParam) setSys(sysParam);
-
-    const qParam = searchParams.get('q');
-    if (qParam) setQ(qParam);
-
-    const brandParam = searchParams.get('brand');
-    if (brandParam) setBrands([brandParam]);
-  }, [searchParams]);
-
-  // Extract all available thread sizes from products database
-  const allSizes = useMemo(() => {
-    const set = new Set<string>();
-    PRODUCTS.forEach(p => {
-      if (p.attrs?.size) {
-        p.attrs.size.forEach(s => set.add(s));
-      }
-      if (p.hasSizes) {
-        p.hasSizes.forEach(s => set.add(s));
-      }
-    });
-    return Array.from(set).sort();
-  }, []);
-
-  const filtered = useMemo(() => {
-    const sysProducts = sys ? SYSTEMS.find(s => s.key === sys)?.products : null;
-    const sysIds = sysProducts ? new Set(sysProducts) : null;
-    const qq = q.trim().toLowerCase();
-
-    let list = PRODUCTS.filter(p => {
-      if (sysIds && !sysIds.has(p.id)) return false;
-      if (cats.length && !cats.includes(p.cat)) return false;
-      if (brands.length && !brands.includes(p.brand)) return false;
-      if (stds.length && !p.standards.some(s => stds.includes(s))) return false;
-      if (sizes.length) {
-        const ps = p.attrs?.size || p.hasSizes || [];
-        if (!ps.some(s => sizes.includes(s))) return false;
-      }
-      if (inStockOnly && p.lead && p.lead.days > 0) return false;
-      if (qq) {
-        const hay = `${p.th} ${p.en} ${p.id} ${p.sku || ''} ${p.standards.join(' ')}`.toLowerCase();
-        if (!hay.includes(qq)) return false;
-      }
-      return true;
-    });
-
-    if (sort === 'price-asc') {
-      list = [...list].sort((a, b) => getCheapestPrice(a) - getCheapestPrice(b));
+  // Sync with search parameters on load (using render-phase state adjustment to avoid useEffect cascading renders)
+  const [prevParams, setPrevParams] = useState<string | null>(null);
+  const currentParamsStr = searchParams ? searchParams.toString() : '';
+  if (currentParamsStr !== prevParams) {
+    setPrevParams(currentParamsStr);
+    if (searchParams) {
+      const catParam = searchParams.get('cat');
+      setCats(catParam ? [catParam] : []);
+      const sysParam = searchParams.get('sys');
+      setSys(sysParam || '');
+      const qParam = searchParams.get('q');
+      setQ(qParam || '');
+      const brandParam = searchParams.get('brand');
+      setBrands(brandParam ? [brandParam] : []);
     }
-    if (sort === 'price-desc') {
-      list = [...list].sort((a, b) => getCheapestPrice(b) - getCheapestPrice(a));
-    }
-    return list;
-  }, [cats, sys, q, brands, stds, sizes, inStockOnly, sort]);
+  }
+
+  const filtered = products;
 
   const toggle = (arr: string[], setArr: (a: string[]) => void, v: string) => {
     setArr(arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v]);
@@ -209,7 +224,7 @@ function CatalogContent() {
 
   const anyFilter = cats.length || brands.length || stds.length || sizes.length || inStockOnly || sys || q;
   const sysInfo = sys ? SYSTEMS.find(s => s.key === sys) : null;
-  const catCount = (key: string) => PRODUCTS.filter(p => p.cat === key).length;
+  const catCount = (key: string) => products.filter(p => p.cat === key).length;
 
   return (
     <div className="store-page">
@@ -322,7 +337,7 @@ function CatalogContent() {
           {/* Brand Facet */}
           <div className="facet">
             <h4 className="facet-title">{t(lang, 'แบรนด์', 'Brand')}</h4>
-            {['SUG', 'TITAN'].map(b => (
+            {allBrands.map(b => (
               <label key={b} className={`facet-opt ${brands.includes(b) ? 'active' : ''}`}>
                 <input
                   type="checkbox"
@@ -330,7 +345,7 @@ function CatalogContent() {
                   onChange={() => toggle(brands, setBrands, b)}
                 />
                 {b}
-                <span className="ct">{PRODUCTS.filter(p => p.brand === b).length}</span>
+                <span className="ct">{products.filter(p => p.brand === b).length}</span>
               </label>
             ))}
           </div>
@@ -354,7 +369,7 @@ function CatalogContent() {
           {/* Standards Facet */}
           <div className="facet">
             <h4 className="facet-title">{t(lang, 'มาตรฐาน', 'Standard')}</h4>
-            {ALL_STANDARDS.slice(0, 10).map(s => (
+            {allStandards.slice(0, 10).map(s => (
               <label key={s} className={`facet-opt ${stds.includes(s) ? 'active' : ''}`}>
                 <input
                   type="checkbox"
@@ -440,7 +455,7 @@ function CatalogContent() {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2, background: 'var(--sug-fog)', border: '1px solid var(--sug-fog)', borderRadius: 'var(--radius-1)', overflow: 'hidden' }}>
                   {crossRefResults.map((r, i) => {
-                    const product = getProductById(r.sug_product_id);
+                    const product = products.find(p => p.id === r.sug_product_id);
                     return (
                       <div key={i} style={{ background: '#fff', padding: '16px 20px', display: 'grid', gridTemplateColumns: '1fr auto 1fr auto', gap: 16, alignItems: 'center' }}>
                         <div>
@@ -494,7 +509,20 @@ function CatalogContent() {
           </div>
 
           {/* Products result rows list */}
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="result-list">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="result-row skeleton" style={{ minHeight: 120, display: 'flex', gap: 20, alignItems: 'center', opacity: 0.6, background: 'var(--sug-paper)', border: '1px solid var(--sug-fog)', padding: 20 }}>
+                  <div style={{ width: 80, height: 80, background: 'var(--sug-fog)', borderRadius: 4 }}></div>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ width: '40%', height: 16, background: 'var(--sug-fog)', borderRadius: 2 }}></div>
+                    <div style={{ width: '20%', height: 12, background: 'var(--sug-fog)', borderRadius: 2 }}></div>
+                    <div style={{ width: '60%', height: 12, background: 'var(--sug-fog)', borderRadius: 2 }}></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="empty-state">
               <div className="es-ico">⌕</div>
               <h3 lang={lang}>{t(lang, 'ไม่พบสินค้าที่ตรงกับตัวกรอง', 'No products match these filters')}</h3>

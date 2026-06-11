@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import { Footer } from '@/components/Sections';
@@ -49,8 +49,43 @@ export default function ProductDetailPage({ params }: Props) {
   const { user } = useDealerAuth();
   const dealer = !!user;
 
-  const product = getProductById(params.product);
-  const category = getCategoryByKey(params.category);
+  const staticProduct = getProductById(params.product);
+
+  interface ApiMatchedSku {
+    sku: string;
+    size?: string;
+    length?: string;
+    finish?: string;
+    weight?: number;
+    boxQty?: number;
+    crateQty?: number;
+    listPrice: number;
+    price: number;
+  }
+
+  interface ApiSpec {
+    sku: string;
+    size?: string;
+    length?: string;
+    finish?: string;
+    listPrice: number;
+    tierPrice: number;
+    weight?: number;
+    boxQty?: number;
+    crateQty?: number;
+  }
+
+  // Dynamic API state
+  const [apiData, setApiData] = useState<{
+    product?: Product;
+    matchedSku?: ApiMatchedSku;
+    specs?: ApiSpec[];
+  } | null>(null);
+
+  const product = apiData?.product || staticProduct;
+  const matchedSku = apiData?.matchedSku;
+
+  const category = getCategoryByKey(product?.cat || params.category);
 
   // pdp tabs state
   const [tab, setTab] = useState<'specs' | 'certs' | 'ship'>('specs');
@@ -60,24 +95,48 @@ export default function ProductDetailPage({ params }: Props) {
 
   // dynamic selector state
   const initialSel = useMemo(() => {
-    if (!product) return {} as Record<string, string | null>;
-    if (product.parametric && product.attrs) {
+    if (!staticProduct) return {} as Record<string, string | null>;
+    if (staticProduct.parametric && staticProduct.attrs) {
       return {
-        size: product.attrs.size ? product.attrs.size[0] : null,
-        length: product.attrs.length ? product.attrs.length[0] : null,
-        grade: product.attrs.grade ? product.attrs.grade[0] : null,
-        finish: product.attrs.finish ? product.attrs.finish[0] : null,
+        size: staticProduct.attrs.size ? staticProduct.attrs.size[0] : null,
+        length: staticProduct.attrs.length ? staticProduct.attrs.length[0] : null,
+        grade: staticProduct.attrs.grade ? staticProduct.attrs.grade[0] : null,
+        finish: staticProduct.attrs.finish ? staticProduct.attrs.finish[0] : null,
       } as Record<string, string | null>;
     }
-    return { size: product.hasSizes ? product.hasSizes[0] : null } as Record<string, string | null>;
-  }, [product]);
+    return { size: staticProduct.hasSizes ? staticProduct.hasSizes[0] : null } as Record<string, string | null>;
+  }, [staticProduct]);
 
   const [sel, setSel] = useState<Record<string, string | null>>(initialSel);
 
-  // reset selection if product changes
-  useMemo(() => {
+  // reset selection if product changes (render-phase state adjustment pattern)
+  const [prevProduct, setPrevProduct] = useState(params.product);
+  if (params.product !== prevProduct) {
+    setPrevProduct(params.product);
     setSel(initialSel);
-  }, [product, initialSel]);
+  }
+
+  // Fetch dynamic details on option select or dealer login changes
+  useEffect(() => {
+    const tier = user?.tier || '';
+    const queryParts = [];
+    if (sel.size) queryParts.push(`size=${encodeURIComponent(sel.size)}`);
+    if (sel.length) queryParts.push(`length=${encodeURIComponent(sel.length)}`);
+    if (sel.finish) queryParts.push(`finish=${encodeURIComponent(sel.finish)}`);
+    if (tier) queryParts.push(`tier=${encodeURIComponent(tier)}`);
+    const queryString = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
+
+    fetch(`/api/products/${params.product}${queryString}`)
+      .then(res => res.json())
+      .then(data => {
+        if (!data.error) {
+          setApiData(data);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to load dynamic details:', err);
+      });
+  }, [params.product, sel.size, sel.length, sel.finish, user?.tier]);
 
   // B2B unit and qty state
   const [buyUnit, setBuyUnit] = useState<string>('pc');
@@ -111,16 +170,16 @@ export default function ProductDetailPage({ params }: Props) {
     setUnitQty(nq);
   };
 
-  const listPrice = product.parametric ? computePrice(product, sel) : product.priceList || 0;
-  const unitPrice = dealer ? Math.round(listPrice * DEALER_MULT * 100) / 100 : listPrice;
+  const listPrice = matchedSku ? matchedSku.listPrice : (product.parametric ? computePrice(product, sel) : product.priceList || 0);
+  const unitPrice = matchedSku ? matchedSku.price : (dealer ? Math.round(listPrice * DEALER_MULT * 100) / 100 : listPrice);
   const tieredPriceVal = tierPrice(unitPrice, qty, product.breaks);
-  const sku = buildSku(product, sel);
+  const sku = matchedSku ? matchedSku.sku : buildSku(product, sel);
 
   // stable stock values depending on dynamic selections
   const stockSeed = product.seed + (sel.size ? sel.size.length : 0);
   const stock = stockFor(stockSeed);
   const totalStock = stock.reduce((s, b) => s + b.qty, 0);
-  const savePct = Math.round((1 - tieredPriceVal / listPrice) * 100);
+  const savePct = listPrice > 0 ? Math.round((1 - tieredPriceVal / listPrice) * 100) : 0;
 
   const setAttr = (k: string, v: string) => {
     setSel(s => ({ ...s, [k]: v }));

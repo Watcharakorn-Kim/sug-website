@@ -4,14 +4,18 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { DealerAuthProvider, useDealerAuth } from '@/lib/dealerAuth';
 
+type Lang = 'th' | 'en';
+const t = (lang: Lang, th: string, en: string) => lang === 'en' ? en : th;
+
 function LoginForm() {
   const { login, isLoading } = useDealerAuth();
   const router = useRouter();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [lang, setLang] = useState<Lang>('th');
+  const [username, setUsername] = useState('demo');
+  const [password, setPassword] = useState('demo');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPw, setShowPw] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,152 +26,117 @@ function LoginForm() {
     if (ok) {
       router.push('/');
     } else {
-      setError('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง · Invalid username or password');
+      setError(
+        lang === 'en'
+          ? 'Invalid username or password'
+          : 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง · Invalid username or password'
+      );
     }
   };
 
+  const benefits = [
+    [ 'ราคาคู่ค้าตามระดับบัญชีของคุณ', 'Trade pricing by your account tier' ],
+    [ 'ตรวจสอบสต็อกและกำหนดส่งแบบเรียลไทม์', 'Real-time stock & delivery dates' ],
+    [ 'สั่งซ้ำและดูประวัติคำสั่งซื้อ', 'Reorder and view your order history' ],
+    [ 'ใบเสนอราคาและเอกสารวางบิล', 'Quotations and billing documents' ],
+  ];
+
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(155deg, #1a1b5e 0%, #0d0e35 60%, #14154F 100%)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 24,
-      position: 'relative',
-      overflow: 'hidden',
-    }}>
-      {/* Background decor */}
-      <div style={{ position: 'absolute', top: -200, right: -200, width: 600, height: 600, background: 'radial-gradient(circle, rgba(239,90,28,0.12) 0%, transparent 70%)', pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', bottom: -200, left: -200, width: 500, height: 500, background: 'radial-gradient(circle, rgba(43,44,145,0.3) 0%, transparent 70%)', pointerEvents: 'none' }} />
+    <div className="auth-shell">
+      <aside className="auth-aside">
+        <img className="auth-logo" src="/logo-sug-trans.png" alt="SUG" />
+        <div className="auth-aside-head">
+          <span className="auth-kicker" lang={lang}>{t(lang, 'บัญชีคู่ค้า', 'TRADE ACCOUNT')}</span>
+          <h1 lang={lang}>{t(lang, 'เข้าสู่ระบบบัญชีตัวแทน', 'Dealer account sign-in')}</h1>
+          <p className="auth-sub" lang={lang}>{t(lang, 'เข้าถึงราคาคู่ค้าและสั่งซื้อสำหรับธุรกิจของคุณ', 'Access trade pricing and order for your business.')}</p>
+        </div>
+        <ul className="auth-benefits">
+          {benefits.map(([th, en]) => (
+            <li key={en} lang={lang}><span className="bi">✓</span>{t(lang, th, en)}</li>
+          ))}
+        </ul>
+        <div className="auth-aside-foot">SIAM UNION GOLD TRADING CO., LTD. · B2B</div>
+      </aside>
 
-      <div style={{ width: '100%', maxWidth: 440, position: 'relative', zIndex: 1 }}>
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 12, textDecoration: 'none' }}>
-            <img src="/sug-logo-official.png" alt="SUG" style={{ height: 40, width: 'auto' }} />
-            <span style={{ display: 'flex', flexDirection: 'column', gap: 2, textAlign: 'left' }}>
-              <span style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em', color: '#fff', textTransform: 'uppercase' }}>SUG</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 600, letterSpacing: '0.18em', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>FASTENER</span>
-            </span>
+      <main className="auth-main">
+        <div className="auth-topbar">
+          <Link className="auth-back" href="/">
+            ← {t(lang, 'กลับหน้าแรก', 'Back to home')}
           </Link>
-          <div style={{ marginTop: 24, fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)' }}>
-            DEALER PORTAL
+          <div className="auth-langs">
+            <button className={lang === 'th' ? 'on' : ''} onClick={() => setLang('th')}>TH</button>
+            <span className="div">/</span>
+            <button className={lang === 'en' ? 'on' : ''} onClick={() => setLang('en')}>EN</button>
           </div>
         </div>
 
-        {/* Card */}
-        <div style={{
-          background: 'rgba(255,255,255,0.05)',
-          border: '1px solid rgba(255,255,255,0.1)',
-          borderRadius: 'var(--radius-2)',
-          backdropFilter: 'blur(16px)',
-          padding: '40px',
-          boxShadow: '0 24px 80px rgba(0,0,0,0.4)',
-        }}>
-          <h1 style={{ fontFamily: 'var(--font-body)', fontSize: 22, fontWeight: 700, color: '#fff', margin: '0 0 8px' }}>
-            เข้าสู่ระบบ Dealer Portal
-          </h1>
-          <p style={{ fontFamily: 'var(--font-thai)', fontSize: 14, color: 'rgba(255,255,255,0.45)', margin: '0 0 32px' }}>
-            Sign in to access dealer pricing and order tools.
-          </p>
+        <div className="auth-body">
+          <div className="auth-card">
+            <h2 lang={lang}>{t(lang, 'เข้าสู่ระบบ', 'Sign in')}</h2>
+            <p className="lead" lang={lang}>{t(lang, 'สำหรับตัวแทนจำหน่ายที่ได้รับการอนุมัติแล้ว', 'For approved dealer accounts.')}</p>
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <div>
-              <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 10 }}>
-                ชื่อผู้ใช้ · USERNAME
-              </label>
-              <input
-                type="text"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                placeholder="dealer01"
-                required
-                autoComplete="username"
-                style={{
-                  width: '100%', padding: '14px 16px',
-                  background: 'rgba(255,255,255,0.08)',
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  borderRadius: 'var(--radius-1)',
-                  color: '#fff', fontSize: 15,
-                  fontFamily: 'var(--font-mono)',
-                  outline: 'none', transition: 'border-color 180ms',
-                }}
-                onFocus={e => (e.target.style.borderColor = 'var(--sug-orange)')}
-                onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.15)')}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 10 }}>
-                รหัสผ่าน · PASSWORD
-              </label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  type={showPw ? 'text' : 'password'}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••"
+            <form className="auth-form" onSubmit={handleSubmit}>
+              <div className="fld">
+                <label lang={lang}>{t(lang, 'อีเมล หรือ รหัสตัวแทน', 'Email or dealer code')}<span className="req">*</span></label>
+                <input 
+                  type="text" 
+                  value={username} 
+                  onChange={e => setUsername(e.target.value)} 
+                  placeholder="you@company.co.th · DLR-10428" 
                   required
-                  autoComplete="current-password"
-                  style={{
-                    width: '100%', padding: '14px 48px 14px 16px',
-                    background: 'rgba(255,255,255,0.08)',
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    borderRadius: 'var(--radius-1)',
-                    color: '#fff', fontSize: 15,
-                    fontFamily: 'var(--font-mono)',
-                    outline: 'none', transition: 'border-color 180ms',
-                  }}
-                  onFocus={e => (e.target.style.borderColor = 'var(--sug-orange)')}
-                  onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.15)')}
                 />
-                <button type="button" onClick={() => setShowPw(p => !p)}
-                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, opacity: 0.5, color: '#fff' }}>
-                  {showPw ? '🙈' : '👁'}
-                </button>
+                <span className="hint">{t(lang, 'รองรับทั้งอีเมลและรหัส DLR (เช่น DLR-10428)', 'Email or DLR code (e.g. DLR-10428)')}</span>
               </div>
+              <div className="fld">
+                <label lang={lang}>{t(lang, 'รหัสผ่าน', 'Password')}<span className="req">*</span></label>
+                <input 
+                  type="password" 
+                  value={password} 
+                  onChange={e => setPassword(e.target.value)} 
+                  placeholder="••••••••" 
+                  required
+                />
+              </div>
+              <div className="auth-row">
+                <label className="remember" lang={lang}>
+                  <input 
+                    type="checkbox" 
+                    checked={rememberMe} 
+                    onChange={e => setRememberMe(e.target.checked)} 
+                  /> {t(lang, 'จดจำฉันไว้', 'Remember me')}
+                </label>
+                <a className="link-orange" href="#" onClick={(e) => e.preventDefault()} lang={lang}>
+                  {t(lang, 'ลืมรหัสผ่าน?', 'Forgot password?')}
+                </a>
+              </div>
+
+              {error && (
+                <div style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 'var(--radius-1)', padding: '12px 16px', fontSize: 13, color: '#fca5a5' }}>
+                  {error}
+                </div>
+              )}
+
+              <button type="submit" className="btn-auth" disabled={loading || isLoading} lang={lang}>
+                {loading || isLoading ? (
+                  t(lang, 'กำลังเข้าสู่ระบบ...', 'Signing in...')
+                ) : (
+                  <>{t(lang, 'เข้าสู่ระบบ', 'Sign in')} <span className="arr">→</span></>
+                )}
+              </button>
+            </form>
+
+            <p className="auth-alt" lang={lang}>
+              {t(lang, 'ยังไม่มีบัญชีคู่ค้า?', 'No trade account yet?')} <Link href="/contact">{t(lang, 'เปิดบัญชีตัวแทน', 'Open a dealer account')}</Link>
+            </p>
+
+            <div className="auth-note" lang={lang}>
+              {t(lang,
+                'ลูกค้าทั่วไปสามารถดูสินค้าและสเปกทั้งหมดได้โดยไม่ต้องเข้าสู่ระบบ — เข้าสู่ระบบเฉพาะเมื่อต้องการดูราคาคู่ค้าและสั่งซื้อ',
+                'Anyone can browse all products and specs without signing in — sign in only to see trade pricing and to order.')}
             </div>
-
-            {error && (
-              <div style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 'var(--radius-1)', padding: '12px 16px', fontSize: 13, color: '#fca5a5' }}>
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading || isLoading}
-              style={{
-                background: loading ? 'var(--sug-steel)' : 'var(--sug-orange)',
-                color: '#fff', padding: '16px', borderRadius: 'var(--radius-1)',
-                fontSize: 15, fontWeight: 700, border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
-                transition: 'background 180ms', fontFamily: 'var(--font-body)',
-              }}
-            >
-              {loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ · Login'}
-            </button>
-          </form>
-
-          {/* Demo hint */}
-          <div style={{ marginTop: 28, padding: '14px 16px', background: 'rgba(255,255,255,0.05)', borderRadius: 'var(--radius-1)', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', marginBottom: 8 }}>DEMO ACCESS</div>
-            <code style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 1.8 }}>
-              username: demo<br />
-              password: demo
-            </code>
           </div>
         </div>
-
-        {/* Back link */}
-        <div style={{ textAlign: 'center', marginTop: 24 }}>
-          <Link href="/" style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', textDecoration: 'none', transition: 'color 180ms' }}
-            onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.7)')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.35)')}>
-            ← กลับหน้าหลัก · Back to main site
-          </Link>
-        </div>
-      </div>
+      </main>
     </div>
   );
 }

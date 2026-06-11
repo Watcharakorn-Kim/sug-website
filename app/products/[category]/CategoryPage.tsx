@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import { Footer } from '@/components/Sections';
@@ -114,6 +114,23 @@ function ProductCard({ product, lang }: { product: Product; lang: Lang }) {
 
 export default function CategoryPage({ params }: Props) {
   const [lang, setLang] = useState<Lang>('th');
+  
+  // Load products dynamically from API
+  const [products, setProducts] = useState<Product[]>(PRODUCTS);
+
+  useEffect(() => {
+    fetch(`/api/products?cat=${encodeURIComponent(params.category)}&limit=100`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.products) {
+          setProducts(data.products);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to load products:', err);
+      });
+  }, [params.category]);
+
   const categoryBase = getCategoryByKey(params.category);
 
   if (!categoryBase) {
@@ -130,7 +147,7 @@ export default function CategoryPage({ params }: Props) {
     );
   }
 
-  const categoryProducts = PRODUCTS.filter(p => p.cat === categoryBase.key);
+  const categoryProducts = products.filter(p => p.cat === categoryBase.key);
   const categoryBrand = categoryProducts[0]?.brand || 'SUG';
   const colorMap: Record<string, string> = {
     bolts: '#23247E',
@@ -353,7 +370,7 @@ export default function CategoryPage({ params }: Props) {
                 </h2>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 2, background: 'var(--sug-fog)', border: '1px solid var(--sug-fog)' }}>
                   {otherCats.slice(0, 4).map(c => {
-                    const cProducts = PRODUCTS.filter(p => p.cat === c.key);
+                    const cProducts = products.filter(p => p.cat === c.key);
                     const cBrand = cProducts[0]?.brand || 'SUG';
 
                     return (

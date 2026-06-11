@@ -6,8 +6,8 @@ import { useEffect, useRef } from 'react';
 type Lang = 'th' | 'en';
 const t = (lang: Lang, th: string, en: string) => lang === 'en' ? en : th;
 
-function useReveal(delay = 0) {
-  const ref = useRef<HTMLElement>(null);
+function useReveal<T extends HTMLElement = HTMLDivElement>(delay = 0) {
+  const ref = useRef<T>(null);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -23,7 +23,7 @@ function useReveal(delay = 0) {
     obs.observe(el);
     return () => obs.disconnect();
   }, [delay]);
-  return ref as React.RefObject<any>;
+  return ref;
 }
 
 /* ══════════════════════════════════════════

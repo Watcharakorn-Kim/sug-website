@@ -78,7 +78,7 @@ export default function Header({ lang, setLang, active = 'home' }: HeaderProps) 
       <div className="sug-nav">
         <div className="sug-nav-inner">
           {/* Logo */}
-          <Link href="/" className="sug-logo-link" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none' }}>
+          <Link href="/" className="sug-logo-link" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
             {/* Badge — preserve square aspect ratio */}
             <Image
               src="/sug-logo-official.png"
@@ -88,30 +88,6 @@ export default function Header({ lang, setLang, active = 'home' }: HeaderProps) 
               priority
               style={{ width: 'auto', height: 44, objectFit: 'contain' }}
             />
-            {/* Wordmark */}
-            <span style={{
-              display: 'flex',
-              flexDirection: 'column',
-              lineHeight: 1,
-              gap: 2,
-            }}>
-              <span style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: 20,
-                fontWeight: 800,
-                letterSpacing: '-0.02em',
-                color: 'var(--sug-ink)',
-                textTransform: 'uppercase',
-              }}>SUG</span>
-              <span style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 9,
-                fontWeight: 600,
-                letterSpacing: '0.18em',
-                color: 'var(--sug-steel)',
-                textTransform: 'uppercase',
-              }}>FASTENER</span>
-            </span>
           </Link>
 
           {/* Nav links */}

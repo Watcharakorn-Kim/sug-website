@@ -14,8 +14,9 @@ export function generateStaticParams() {
   ];
 }
 
-export async function generateMetadata({ params }: { params: { category: string } }): Promise<Metadata> {
-  const cat = getCategoryByKey(params.category);
+export async function generateMetadata({ params }: { params: Promise<{ category: string }> }): Promise<Metadata> {
+  const { category } = await params;
+  const cat = getCategoryByKey(category);
   if (!cat) return { title: 'Product Category | SUG Fastener' };
   return {
     title: `${cat.th} · ${cat.en} | SUG Fastener`,
