@@ -349,21 +349,7 @@ function CatalogContent() {
             ))}
           </div>
 
-          {/* Thread Size Facet */}
-          <div className="facet">
-            <h4 className="facet-title">{t(lang, 'ขนาดเกลียว', 'Thread Size')}</h4>
-            <div className="chip-row">
-              {allSizes.map(s => (
-                <span
-                  key={s}
-                  className={`size-chip ${sizes.includes(s) ? 'active' : ''}`}
-                  onClick={() => toggle(sizes, setSizes, s)}
-                >
-                  {s}
-                </span>
-              ))}
-            </div>
-          </div>
+
 
           {/* Standards Facet */}
           <div className="facet">
